@@ -2,7 +2,7 @@
 // Copyright (C) 2020
 // by Blueforcer & Mazze2000
 #include <FS.h>
-#include <ArduinoOTA.h>
+// #include <ArduinoOTA.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266httpUpdate.h>
@@ -46,7 +46,7 @@ bool MatrixType2 = false;
 int matrixTempCorrection = 0;
 
 String version = "0.3";
-char awtrix_server[16] = "196.168.";
+char awtrix_server[16] = "192.168.";
 char Port[5] = "7001"; // AWTRIX Host Port, default = 7001
 IPAddress Server;
 WiFiClient espClient;
@@ -211,15 +211,14 @@ void sendToServer(String s)
 	}
 	else
 	{
-		if(!LiteMode)
+		if (!LiteMode)
 		{
 			client.publish("matrixClient", s.c_str());
-		}else
+		}
+		else
 		{
 			APC.publish(s);
 		}
-		
-		
 	}
 }
 
@@ -655,6 +654,27 @@ void utf8ascii(char *s)
 
 void checkReset()
 {
+	if (drd.detect())
+	{
+		//Serial.println("** Double reset boot **");
+		matrix->clear();
+		matrix->setTextColor(matrix->Color(255, 0, 0));
+		matrix->setCursor(6, 6);
+		matrix->print("RESET!");
+		matrix->show();
+		delay(1000);
+		if (SPIFFS.begin())
+		{
+			delay(1000);
+			SPIFFS.remove("/awtrix.json");
+
+			SPIFFS.end();
+			delay(1000);
+		}
+		wifiManager.resetSettings();
+		ESP.reset();
+	}
+
 	int resetTimeShow = 0;
 	int resetStartTime = millis();
 	while (digitalRead(tasterPin[0]) && digitalRead(tasterPin[2]))
@@ -759,7 +779,7 @@ void updateMatrix(byte payload[], int length)
 				char c = payload[i];
 				myText += c;
 			}
-			Serial.println(myText);
+			// Serial.println(myText);
 			matrix->print(utf8ascii(myText));
 			break;
 		}
@@ -915,6 +935,11 @@ void updateMatrix(byte payload[], int length)
 			{
 				root["Temp"] = htu.readTemperature();
 				root["Hum"] = htu.readHumidity();
+				root["hPa"] = 0;
+			}else if (tempState == 3)
+			{
+				root["Temp"] = dht.readTemperature();
+				root["Hum"] = dht.readHumidity();
 				root["hPa"] = 0;
 			}
 			else
@@ -1108,8 +1133,6 @@ void updateMatrix(byte payload[], int length)
 				connectionTimout = millis();
 				break;
 			}
-			Serial.println("Textlänge auf Matrix: " + (String)(textlaenge));
-			Serial.println("Test: " + tempString + " / Color: " + r + "/" + g + "/" + b);
 			break;
 		}
 		case 23:
@@ -1136,13 +1159,11 @@ void callback(char *topic, byte *payload, unsigned int length)
 
 void reconnect()
 {
-	//Serial.println("reconnecting to " + String(awtrix_server));
 	String clientId = "AWTRIXController-";
 	clientId += String(random(0xffff), HEX);
 	hardwareAnimatedSearch(1, 28, 0);
 	if (client.connect(clientId.c_str()))
 	{
-		//Serial.println("connected to server!");
 		client.subscribe("awtrixmatrix/#");
 		client.publish("matrixClient", "connected");
 	}
@@ -1252,7 +1273,7 @@ void configModeCallback(WiFiManager *myWiFiManager)
 	matrix->show();
 }
 
-void setup()
+void baseInit()
 {
 	delay(2000);
 	Serial.setRxBufferSize(1024);
@@ -1296,7 +1317,9 @@ void setup()
 	{
 		//error
 	}
-
+}
+void matrixInit()
+{
 	Serial.println("Matrix Type");
 
 	if (!MatrixType2)
@@ -1382,30 +1405,9 @@ void setup()
 	matrix->setTextWrap(false);
 	matrix->setBrightness(80);
 	matrix->setFont(&TomThumb);
-
-	if (drd.detect())
-	{
-		//Serial.println("** Double reset boot **");
-		matrix->clear();
-		matrix->setTextColor(matrix->Color(255, 0, 0));
-		matrix->setCursor(6, 6);
-		matrix->print("RESET!");
-		matrix->show();
-		delay(1000);
-		if (SPIFFS.begin())
-		{
-			delay(1000);
-			SPIFFS.remove("/awtrix.json");
-
-			SPIFFS.end();
-			delay(1000);
-		}
-		wifiManager.resetSettings();
-		ESP.reset();
-	}
-
-	checkReset();
-
+}
+void netInit()
+{
 	wifiManager.setAPStaticIPConfig(IPAddress(172, 217, 28, 1), IPAddress(172, 217, 28, 1), IPAddress(255, 255, 255, 0));
 	WiFiManagerParameter custom_awtrix_server("server", "AWTRIX Host", awtrix_server, 16);
 	WiFiManagerParameter custom_port("Port", "Matrix Port", Port, 5);
@@ -1490,7 +1492,9 @@ void setup()
 	hardwareAnimatedCheck(0, 27, 2);
 
 	delay(1000); //is needed for the dfplayer to startup
-
+}
+void hardwareInit()
+{
 	//Checking periphery
 	Wire.begin(I2C_SDA, I2C_SCL);
 	if (BMESensor.begin())
@@ -1539,29 +1543,24 @@ void setup()
 		}
 		hardwareAnimatedCheck(6, 29, 2);
 	}
+}
 
-	ArduinoOTA.onStart([&]() {
-		updating = true;
-		matrix->clear();
-	});
-
-	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-		flashProgress(progress, total);
-	});
-
-	ArduinoOTA.begin();
+void setup()
+{
+	baseInit();
+	matrixInit();
+	checkReset();
+	netInit();
+	hardwareInit();
 
 	matrix->clear();
 	matrix->setCursor(7, 6);
-
 	bufferpointer = 0;
-
 	myTime = millis() - 500;
 	myTime2 = millis() - 1000;
 	myTime3 = millis() - 500;
 	myCounter = 0;
 	myCounter2 = 0;
-
 	if (!LiteMode)
 	{
 		for (int x = 32; x >= -90; x--)
@@ -1573,43 +1572,34 @@ void setup()
 			matrix->show();
 			delay(40);
 		}
-
 		client.setServer(awtrix_server, atoi(Port));
 		client.setCallback(callback);
 	}
 	else
 	{
-		// for (int x = 32; x >= -90; x--)
-		// {
-		// 	matrix->clear();
-		// 	matrix->setCursor(x, 6);
-		// 	matrix->print("LiteMode IP: " + WiFi.localIP().toString());
-		// 	matrix->setTextColor(matrix->Color(0, 255, 50));
-		// 	matrix->show();
-		// 	delay(40);
-		// }
-		//APC.systemInit(callback,&rtc);
+		for (int x = 32; x >= -100; x--)
+		{
+			matrix->clear();
+			matrix->setCursor(x, 6);
+			matrix->print("LiteMode IP: " + WiFi.localIP().toString());
+			matrix->setTextColor(matrix->Color(0, 255, 50));
+			matrix->show();
+			delay(40);
+		}
+		APC.systemInit(callback, &rtc);
 	}
-
 	pinMode(D0, INPUT);
 	pinMode(D0, INPUT_PULLUP);
-
 	pinMode(D4, INPUT);
 	pinMode(D4, INPUT_PULLUP);
-
 	pinMode(D8, INPUT);
-
 	ignoreServer = false;
-
 	connectionTimout = millis();
 }
 
-void loop()
+void onLineModeLoop()
 {
-	server.handleClient();
-	ArduinoOTA.handle();
-	//is needed for the server search animation
-	if (firstStart && !ignoreServer && !LiteMode)
+	if (firstStart && !ignoreServer)
 	{
 		if (millis() - myTime > 500)
 		{
@@ -1622,82 +1612,14 @@ void loop()
 			myTime = millis();
 		}
 	}
-
-	//not during the falsh process
+	// not during the falsh process
 	if (!updating)
 	{
-		if (!LiteMode && (USBConnection || firstStart))
-		{
-			int x = 100;
-			while (x >= 0)
-			{
-				x--;
-				//USB
-				if (Serial.available() > 0)
-				{
-					//read and fill in ringbuffer
-					myBytes[bufferpointer] = Serial.read();
-					messageLength--;
-					for (int i = 0; i < 14; i++)
-					{
-						if ((bufferpointer - i) < 0)
-						{
-							myPointer[i] = 1000 + bufferpointer - i;
-						}
-						else
-						{
-							myPointer[i] = bufferpointer - i;
-						}
-					}
-					//prefix from "awtrix" == 6?
-					if (myBytes[myPointer[13]] == 0 && myBytes[myPointer[12]] == 0 && myBytes[myPointer[11]] == 0 && myBytes[myPointer[10]] == 6)
-					{
-						//"awtrix" ?
-						if (myBytes[myPointer[9]] == 97 && myBytes[myPointer[8]] == 119 && myBytes[myPointer[7]] == 116 && myBytes[myPointer[6]] == 114 && myBytes[myPointer[5]] == 105 && myBytes[myPointer[4]] == 120)
-						{
-							messageLength = (int(myBytes[myPointer[3]]) << 24) + (int(myBytes[myPointer[2]]) << 16) + (int(myBytes[myPointer[1]]) << 8) + int(myBytes[myPointer[0]]);
-							SavemMessageLength = messageLength;
-							awtrixFound = true;
-						}
-					}
-
-					if (awtrixFound && messageLength == 0)
-					{
-						byte tempData[SavemMessageLength];
-						int up = 0;
-						for (int i = SavemMessageLength - 1; i >= 0; i--)
-						{
-							if ((bufferpointer - i) >= 0)
-							{
-								tempData[up] = myBytes[bufferpointer - i];
-							}
-							else
-							{
-								tempData[up] = myBytes[1000 + bufferpointer - i];
-							}
-							up++;
-						}
-						USBConnection = true;
-						updateMatrix(tempData, SavemMessageLength);
-						awtrixFound = false;
-					}
-					bufferpointer++;
-					if (bufferpointer == 1000)
-					{
-						bufferpointer = 0;
-					}
-				}
-				else
-				{
-					break;
-				}
-			}
-		}
 		//Wifi
 		if (WIFIConnection || firstStart)
 		{
 			//Serial.println("wifi oder first...");
-			if (!client.connected() && !LiteMode)
+			if (!client.connected())
 			{
 				//Serial.println("nicht verbunden...");
 				reconnect();
@@ -1713,6 +1635,26 @@ void loop()
 				client.loop();
 			}
 		}
+	}
+}
+
+
+void loop()
+{
+	// APC.ramCheck("loop begin");
+	server.handleClient();
+	//is needed for the server search animation
+	if (LiteMode)
+	{
+		APC.apcLoop();
+	}
+	else
+	{
+		onLineModeLoop();
+	}
+
+	if (!updating)
+	{
 		//check gesture sensor
 		if (isr_flag == 1)
 		{
@@ -1721,7 +1663,6 @@ void loop()
 			isr_flag = 0;
 			attachInterrupt(APDS9960_INT, interruptRoutine, FALLING);
 		}
-
 		if (millis() - connectionTimout > 20000 && !LiteMode)
 		{
 			USBConnection = false;
@@ -1729,37 +1670,8 @@ void loop()
 			firstStart = true;
 		}
 	}
-
 	checkTaster(0);
 	checkTaster(1);
 	checkTaster(2);
-	//checkTaster(3);
-	if (LiteMode)
-	{
-		// matrix->clear();
-		// matrix->setCursor(0, 6);
-		// matrix->setTextColor(matrix->Color(0, 255, 50));
-		// matrix->print("Offline");
-		// matrix->show();
-		APC.apcLoop();
-	}
-
-	//is needed for the menue...
-	// if (ignoreServer)
-	// {
-	// 	if (pressedTaster > 0)
-	// 	{
-	// 		matrix->clear();
-	// 		matrix->setCursor(0, 6);
-	// 		matrix->setTextColor(matrix->Color(0, 255, 50));
-	// 		//matrix->print(myMenue.getMenueString(&menuePointer, &pressedTaster, &minBrightness, &maxBrightness));
-	// 		matrix->show();
-	// 	}
-
-	// 	//get data and ignore
-	// 	if (Serial.available() > 0)
-	// 	{
-	// 		Serial.read();
-	// 	}
-	// }
+	// APC.ramCheck("loop end");
 }
