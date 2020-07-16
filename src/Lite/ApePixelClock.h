@@ -6,29 +6,33 @@
 #include <PubSubClient.h>
 
 ////////////////////////////////配置区域--开始////////////////////////////////////
-
 #define GLOBAL_TEXT_COLOR 0xFFFFFF      //默认文字颜色
 #define TIME_SHOW         1             //时间效果
+#define WEATHER_SHOW      1             //实时天气
 #define BILIBILI_SHOW     1             //B站订阅人数
+#define YOUTUBE_SHOW      1             //Youtube订阅人数
+#define INDOOR_SHOW       1             //室内温湿度
+// #define ALERT_
 
-#define BILIBILI_UID      "298146460"   //B站用户ID
-
-
-
+#define BILIBILI_UID      "298146460"                                 //B站用户ID
+#define YOUTUBE_CHANNEL   "UCVP3cwbysoohuvQbSWN8RgA"                  //Youtube 频道ID
+#define YOUTUBE_APIKEY    "AIzaSyDVR3QM5-5Z3JihJOSB9-s-7IhnVq2V29k"   //Youtube APIKEY
+#define WEATHER_APIKEY    "0430c46d7537403a9d6ee9822fb0cdaf"          //天气 APIKEY
+#define WEATHER_CITY      "101010100"                                 //天气 城市
 ////////////////////////////////配置区域--结束////////////////////////////////////
 
 #define MAX_APCEffECTAREA_COUNT 4
 
 struct ApcEffectAreaDef
 {
-  int16_t x; // from top-left to rigth-bottom
+  int16_t x;                  // from top-left to rigth-bottom
   int16_t y;
-  uint8 width;
-  uint8 height;
-  uint8 frameCount;
-  uint32 frameRefreshTime; //ms
-  uint8 currentFrameCount;
-  uint32 currentRefreshTime;
+  uint8   width;
+  uint8   height;
+  uint8   frameCount;
+  uint32  frameRefreshTime;   //ms
+  uint8   currentFrameCount;
+  uint32  currentRefreshTime;
 };
 
 typedef void (*ApcScheduleCallback)();
@@ -80,6 +84,7 @@ public:
   ApePixelClock &plStr(const String &str);
   void plCallback();
   int textCenterX(int strLength,int charWidth,int maxCharCount);
+  String subscriberCountFormat(uint32 subscriberCount);
   void drawColorIndexFrame(const uint32* colorMap,
   unsigned char width, unsigned char height, const uint32* pixels);
   void ramCheck(const char*);

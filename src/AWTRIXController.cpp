@@ -1577,15 +1577,15 @@ void setup()
 	}
 	else
 	{
-		for (int x = 32; x >= -100; x--)
-		{
-			matrix->clear();
-			matrix->setCursor(x, 6);
-			matrix->print("LiteMode IP: " + WiFi.localIP().toString());
-			matrix->setTextColor(matrix->Color(0, 255, 50));
-			matrix->show();
-			delay(40);
-		}
+		// for (int x = 32; x >= -100; x--)
+		// {
+		// 	matrix->clear();
+		// 	matrix->setCursor(x, 6);
+		// 	matrix->print("LiteMode IP: " + WiFi.localIP().toString());
+		// 	matrix->setTextColor(matrix->Color(0, 255, 50));
+		// 	matrix->show();
+		// 	delay(40);
+		// }
 		APC.systemInit(callback, &rtc);
 	}
 	pinMode(D0, INPUT);
@@ -1641,7 +1641,7 @@ void onLineModeLoop()
 
 void loop()
 {
-	// APC.ramCheck("loop begin");
+	APC.ramCheck("loop begin");
 	server.handleClient();
 	//is needed for the server search animation
 	if (LiteMode)
@@ -1673,5 +1673,5 @@ void loop()
 	checkTaster(0);
 	checkTaster(1);
 	checkTaster(2);
-	// APC.ramCheck("loop end");
+	APC.ramCheck("loop end");
 }

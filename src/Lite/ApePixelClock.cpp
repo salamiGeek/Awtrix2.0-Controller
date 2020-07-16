@@ -13,11 +13,14 @@ std::vector<ApcScheduleCallbackDef *> apcScheduleCallbacks;
 int apcEffectPointer;
 unsigned long preCheckTime = 0;
 unsigned long callbackCheckTime = 0;
+int weatherInfo[3] = {0, 0, 0};
+int inDoorInfo[3] = {0, 0, 0};
 bool autoChange = true;
 
-int biliSubscriberCount = 0;
+uint32 biliSubscriberCount = 0;
+uint32 youTubeSubscriberCount = 0;
 
-byte payload[1024];
+byte payload[256];
 unsigned int payLoadPointer = 0;
 
 void timeShowEffect(unsigned int areaCount, unsigned int frameCount)
@@ -82,23 +85,149 @@ void bilibiliEffect(unsigned int areaCount, unsigned int frameCount)
   }
   else if (areaCount == 1)
   {
-    String num = String(biliSubscriberCount);
+    String num = APC.subscriberCountFormat(biliSubscriberCount);
     APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
   }
 }
 
-const String API = "https://api.bilibili.com/x/relation/stat?vmid=";
-void updateBilibiliSubscriberCount(int effectId)
+const uint32 youtubeColorArr[3] ICACHE_RODATA_ATTR = {0x000000, 0xFF0000, 0xFFFFFF};
+const uint32 youtubePixels[16] ICACHE_RODATA_ATTR =
+    {
+        0x00000000, 0x00000000,
+        0x00010101, 0x01010100,
+        0x01010102, 0x01010101,
+        0x01010102, 0x02010101,
+        0x01010102, 0x02010101,
+        0x01010102, 0x01010101,
+        0x00010101, 0x01010100,
+        0x00000000, 0x00000000};
+
+void youtubeEffect(unsigned int areaCount, unsigned int frameCount)
 {
-  String url = API + String(BILIBILI_UID);
+  if (areaCount == 0)
+  {
+    APC.drawColorIndexFrame(youtubeColorArr, 8, 8, youtubePixels);
+  }
+  else if (areaCount == 1)
+  {
+    String num = APC.subscriberCountFormat(youTubeSubscriberCount);
+    APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+  }
+}
+
+const uint32 weatherColorArr[3] ICACHE_RODATA_ATTR = {0x000000, 0xFF0000, 0xFFFFFF};
+const uint32 weatherPixels[16] ICACHE_RODATA_ATTR =
+    {
+        0x00000002, 0x02000000,
+        0x00000201, 0x01020000,
+        0x00000201, 0x01020000,
+        0x00000201, 0x01020000,
+        0x00000201, 0x01020000,
+        0x00000201, 0x01020000,
+        0x00020201, 0x01020200,
+        0x00020202, 0x02020200};
+
+void weatherEffect(unsigned int areaCount, unsigned int frameCount)
+{
+  if (areaCount == 0)
+  {
+    APC.drawColorIndexFrame(weatherColorArr, 8, 8, weatherPixels);
+  }
+  else if (areaCount == 1)
+  {
+    if (frameCount < 5)
+    {
+      String num = String(weatherInfo[1]) + "C";
+      APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+    }
+    else
+    {
+      String num = String(weatherInfo[2]) + "%";
+      APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+    }
+  }
+}
+
+const uint32 indoorColorArr[3] ICACHE_RODATA_ATTR = {0x000000, 0xFF0000, 0xFFFFFF};
+const uint32 indoorPixels[16] ICACHE_RODATA_ATTR =
+    {
+        0x00000002, 0x02000000,
+        0x00000200, 0x00020000,
+        0x00020001, 0x01020200,
+        0x02000001, 0x01000002,
+        0x02000001, 0x01000002,
+        0x02000001, 0x01000002,
+        0x02000002, 0x02000002,
+        0x02000002, 0x02000002};
+
+void indoorEffect(unsigned int areaCount, unsigned int frameCount)
+{
+  if (areaCount == 0)
+  {
+    APC.drawColorIndexFrame(indoorColorArr, 8, 8, indoorPixels);
+  }
+  else if (areaCount == 1)
+  {
+    if (frameCount < 5)
+    {
+      String num = String(inDoorInfo[0]) + "C";
+      APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+    }
+    else
+    {
+      String num = String(inDoorInfo[1]) + "%";
+      APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+    }
+  }
+}
+
+const String bilibili_API = "https://api.bilibili.com/x/relation/stat?vmid=";
+void updateBilibiliSubscriberCount()
+{
+  String url = bilibili_API + String(BILIBILI_UID);
   int errCode = 0;
   const String &res = APC.httpsRequest(url, &errCode);
   if (errCode == 0)
   {
     DynamicJsonBuffer jsonBuffer;
     JsonObject &json = jsonBuffer.parseObject(res);
-    biliSubscriberCount = json["data"]["follower"].as<int>();
+    biliSubscriberCount = json["data"]["follower"].as<uint32>();
   }
+}
+
+const String youtube_API = "https://www.googleapis.com/youtube/v3/channels?part=statistics";
+void updateYoutubeSubscriberCount()
+{
+  String url = youtube_API + "&id=" + String(YOUTUBE_CHANNEL) + "&key=" + String(YOUTUBE_APIKEY);
+  int errCode = 0;
+  const String &res = APC.httpsRequest(url, &errCode);
+  if (errCode == 0)
+  {
+    DynamicJsonBuffer jsonBuffer;
+    JsonObject &json = jsonBuffer.parseObject(res);
+    youTubeSubscriberCount = json["items"][0]["statistics"]["subscriberCount"].as<uint32>();
+  }
+}
+const String weather_API = "https://devapi.heweather.net/v7/weather/now?gzip=n&";
+void updateWeatherInfo()
+{
+  String url = weather_API + "location=" + String(WEATHER_CITY) + "&key=" + String(WEATHER_APIKEY);
+  int errCode = 0;
+  const String &res = APC.httpsRequest(url, &errCode);
+  if (errCode == 0)
+  {
+    DynamicJsonBuffer jsonBuffer;
+    JsonObject &json = jsonBuffer.parseObject(res);
+    JsonObject &nowObj = json["now"].as<JsonObject>();
+    weatherInfo[0] = nowObj["icon"].as<int>();
+    weatherInfo[1] = nowObj["temp"].as<int>();
+    weatherInfo[2] = nowObj["humidity"].as<int>();
+  }
+}
+
+void updateIndoorInfo()
+{
+  APC.plBegin().plPid(12).plCallback();
 }
 
 void ApePixelClock::ramCheck(const char *info)
@@ -114,14 +243,16 @@ void schedule_callback(int callbackId)
 
     break;
   case 2:
-    updateBilibiliSubscriberCount(callbackId);
+    updateBilibiliSubscriberCount();
     break;
   case 3:
-    updateBilibiliSubscriberCount(callbackId);
+    updateYoutubeSubscriberCount();
     break;
   case 4:
-    updateBilibiliSubscriberCount(callbackId);
+    updateWeatherInfo();
     break;
+  case 5:
+    updateIndoorInfo();
   default:
     break;
   }
@@ -148,28 +279,42 @@ void ApePixelClock::addApcEffects()
   apcEffect->updateTime = 900000;
   apcEffect->autoChangeTime = 10000;
   apcEffect->areaDef[0] = {0, 0, 8, 8, 1, 0};
-  apcEffect->areaDef[1] = {8, 0, 24, 8, 6, 0};
+  apcEffect->areaDef[1] = {8, 0, 24, 8, 1, 0};
   this->addApcEffect(apcEffect);
 #endif
-  // apcEffect = new ApcEffectDef();
-  // memset(apcEffect, 0, sizeof(ApcEffectDef));
-  // apcEffect->effectId = 3;
-  // apcEffect->updateTime = 10000;
-  // apcEffect->autoChangeTime = 10000;
-  // apcEffect->areaDef[0] = {0, 0, 8, 8, 1, 0};
-  // apcEffect->areaDef[1] = {8, 0, 24, 8, 6, 1000};
-  // this->addApcEffect(apcEffect);
-  // Serial.printf("begin3: S:%d,H:%d,M:%d \n", ESP.getFreeContStack(), ESP.getFreeHeap(), ESP.getMaxFreeBlockSize());
 
-  // apcEffect = new ApcEffectDef();
-  // memset(apcEffect, 0, sizeof(ApcEffectDef));
-  // apcEffect->effectId = 4;
-  // apcEffect->updateTime = 10000;
-  // apcEffect->autoChangeTime = 10000;
-  // apcEffect->areaDef[0] = {0, 0, 8, 8, 1, 0};
-  // apcEffect->areaDef[1] = {8, 0, 24, 8, 6, 1000};
-  // this->addApcEffect(apcEffect);
-  // Serial.printf("begin4: S:%d,H:%d,M:%d \n", ESP.getFreeContStack(), ESP.getFreeHeap(), ESP.getMaxFreeBlockSize());
+#if (YOUTUBE_SHOW == 1)
+  apcEffect = new ApcEffectDef();
+  memset(apcEffect, 0, sizeof(ApcEffectDef));
+  apcEffect->effectId = 3;
+  apcEffect->updateTime = 900000;
+  apcEffect->autoChangeTime = 10000;
+  apcEffect->areaDef[0] = {0, 0, 8, 8, 1, 0};
+  apcEffect->areaDef[1] = {8, 0, 24, 8, 1, 0};
+  this->addApcEffect(apcEffect);
+#endif
+
+#if (WEATHER_SHOW == 1)
+  apcEffect = new ApcEffectDef();
+  memset(apcEffect, 0, sizeof(ApcEffectDef));
+  apcEffect->effectId = 4;
+  apcEffect->updateTime = 900000;
+  apcEffect->autoChangeTime = 10000;
+  apcEffect->areaDef[0] = {0, 0, 8, 8, 1, 0};
+  apcEffect->areaDef[1] = {8, 0, 24, 8, 10, 1000};
+  this->addApcEffect(apcEffect);
+#endif
+
+#if (INDOOR_SHOW == 1)
+  apcEffect = new ApcEffectDef();
+  memset(apcEffect, 0, sizeof(ApcEffectDef));
+  apcEffect->effectId = 5;
+  apcEffect->updateTime = 10000;
+  apcEffect->autoChangeTime = 10000;
+  apcEffect->areaDef[0] = {0, 0, 8, 8, 1, 0};
+  apcEffect->areaDef[1] = {8, 0, 24, 8, 10, 1000};
+  this->addApcEffect(apcEffect);
+#endif
 }
 
 void ApePixelClock::addApcEffect(ApcEffectDef *apcEffect)
@@ -216,10 +361,13 @@ void apcEffect_callback(int effectId, unsigned int areaCount, unsigned int frame
     bilibiliEffect(areaCount, frameCount);
     break;
   case 3:
-    bilibiliEffect(areaCount, frameCount);
+    youtubeEffect(areaCount, frameCount);
     break;
   case 4:
-    bilibiliEffect(areaCount, frameCount);
+    weatherEffect(areaCount, frameCount);
+    break;
+  case 5:
+    indoorEffect(areaCount, frameCount);
     break;
   default:
     break;
@@ -396,6 +544,12 @@ void ApePixelClock::publish(String &s)
   {
     Serial.println("button Action");
   }
+  else if (infoType == "MatrixInfo")
+  {
+    inDoorInfo[0] = json["Temp"].as<int>();
+    inDoorInfo[1] = json["Hum"].as<int>();
+    inDoorInfo[2] = json["hPa"].as<int>();
+  }
 }
 
 void ApePixelClock::systemInit(MQTT_CALLBACK_SIGNATURE, RTC_DS1307 *rtc)
@@ -514,7 +668,6 @@ String ApePixelClock::httpsRequest(const String &url, int *errCode)
       }
       res = res.substring(res.indexOf('{'));
       Serial.println("\nclosing connection");
-      delay(100);
       httpsClient->stop();
     }
   }
@@ -574,6 +727,40 @@ int ApePixelClock::textCenterX(int strLength, int charWidth, int maxCharCount)
   if (strLength > maxCharCount)
     strLength = maxCharCount;
   return (maxCharCount - strLength) * charWidth / 2;
+}
+
+String ApePixelClock::subscriberCountFormat(uint32 subscriberCount)
+{
+  String res;
+  if (subscriberCount >= 10000000)
+  {
+    char numChar[8];
+    sprintf(numChar, "%.1f", subscriberCount / 1000000.0);
+    res += String(numChar) + "M";
+  }
+  else if (subscriberCount >= 1000000)
+  {
+    char numChar[6];
+    sprintf(numChar, "%.2f", subscriberCount / 1000000.0);
+    res += String(numChar) + "M";
+  }
+  else if (subscriberCount >= 100000)
+  {
+    char numChar[8];
+    sprintf(numChar, "%.1f", subscriberCount / 1000.0);
+    res += String(numChar) + "K";
+  }
+  else if (subscriberCount >= 10000)
+  {
+    char numChar[6];
+    sprintf(numChar, "%.2f", subscriberCount / 1000.0);
+    res += String(numChar) + "K";
+  }
+  else
+  {
+    res += String(subscriberCount);
+  }
+  return res;
 }
 
 void ApePixelClock::drawColorIndexFrame(const uint32 *colorMap,
