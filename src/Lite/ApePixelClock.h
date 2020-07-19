@@ -6,19 +6,20 @@
 #include <PubSubClient.h>
 
 ////////////////////////////////配置区域--开始////////////////////////////////////
-#define GLOBAL_TEXT_COLOR 0xFFFFFF      //默认文字颜色
-#define TIME_SHOW         1             //时间效果
-#define WEATHER_SHOW      1             //实时天气
-#define BILIBILI_SHOW     1             //B站订阅人数
-#define YOUTUBE_SHOW      1             //Youtube订阅人数
-#define INDOOR_SHOW       1             //室内温湿度
-// #define ALERT_
+#define GLOBAL_TEXT_COLOR   0xFFFFFF      //默认文字颜色
+#define TIME_SHOW           1             //时间效果
+#define WEATHER_SHOW        1             //实时天气
+#define BILIBILI_SHOW       1             //B站订阅人数
+#define YOUTUBE_SHOW        1             //Youtube订阅人数
+#define INDOOR_SHOW         1             //室内温湿度
+#define COUNTDOWN_DAY_SHOW  1             //日期倒计时
 
 #define BILIBILI_UID      "298146460"                                 //B站用户ID
 #define YOUTUBE_CHANNEL   "UCVP3cwbysoohuvQbSWN8RgA"                  //Youtube 频道ID
 #define YOUTUBE_APIKEY    "AIzaSyDVR3QM5-5Z3JihJOSB9-s-7IhnVq2V29k"   //Youtube APIKEY
 #define WEATHER_APIKEY    "0430c46d7537403a9d6ee9822fb0cdaf"          //天气 APIKEY
 #define WEATHER_CITY      "101010100"                                 //天气 城市
+
 ////////////////////////////////配置区域--结束////////////////////////////////////
 
 #define MAX_APCEffECTAREA_COUNT 4
@@ -57,6 +58,16 @@ struct ApcScheduleCallbackDef
   ApcScheduleCallback callbackFunc;
 };
 
+struct ApcConfigDef
+{
+  bool alarm_enable;
+  char alarm_time[6];
+  char cdd_date[11];
+  int  volume;
+  int  brightness;
+  bool liteMode;
+};
+
 class ApePixelClock
 {
 public:
@@ -68,14 +79,13 @@ private:
   byte m_areaHeight;
 public:
   ApePixelClock();
-  void systemInit(MQTT_CALLBACK_SIGNATURE, RTC_DS1307 *rtc);
+  void systemInit(MQTT_CALLBACK_SIGNATURE, RTC_DS1307 *rtc,ApcConfigDef *apcConfigDef);
   void apcSetup();
   void apcLoop();
   void publish(String &s);
   String httpRequest(const String& url, int* errCode);
   String httpsRequest(const String& url, int* errCode);
-  ApePixelClock &plBegin();
-  ApePixelClock &plPid(byte pid);
+  ApePixelClock &plBegin(byte pid);
   ApePixelClock &plCoord(uint16_t x,uint16_t y);
   ApePixelClock &plByte(byte b);
   ApePixelClock &plColor(byte r = (GLOBAL_TEXT_COLOR >> 16) & 0xFF,
@@ -88,17 +98,21 @@ public:
   void drawColorIndexFrame(const uint32* colorMap,
   unsigned char width, unsigned char height, const uint32* pixels);
   void ramCheck(const char*);
-  
+  void checkAlarm();
+  void checkLDR();
+  void removeApcScheduleCallback(ApcScheduleCallbackDef* callbackDef);
+  ApcConfigDef* myApcConfigDef();
 private:
   bool internetConnected();
   void upgradeTime();
   uint32_t requestSecondStamp(int *errCode);
   void effectDisplayInit();
-  void apcEffectChangeAction();
+  void apcEffectChangeAction(bool reverse = false);
   void apcEffectRefresh(ApcEffectDef *apcEffect);
   void addApcEffects();
   void addApcEffect(ApcEffectDef *apcEffect);
-  void addApcScheduleCallback(int callbackId,unsigned long callbackTime);
+  ApcScheduleCallbackDef* addApcScheduleCallback(int callbackId,unsigned long callbackTime,bool callbackNow = true);
+  
   void renderCheck();
   void apcCallbackAction();
   void renderAction(ApcEffectDef *apcEffect, bool needArea = true);

@@ -4,18 +4,24 @@
 #include <WiFiClientSecureBearSSL.h>
 #include <ArduinoJson.h>
 #include <vector>
+#include "MenueControl/MenueControl.h"
 
 RTC_DS1307 *m_rtc;
-
+ApcConfigDef *m_apcConfigDef;
 std::vector<ApcEffectDef *> apcEffects;
 std::vector<ApcScheduleCallbackDef *> apcScheduleCallbacks;
+MenueControl myMenue;
 
 int apcEffectPointer;
 unsigned long preCheckTime = 0;
 unsigned long callbackCheckTime = 0;
 int weatherInfo[3] = {0, 0, 0};
 int inDoorInfo[3] = {0, 0, 0};
+float ldrInfo = 0;
 bool autoChange = true;
+bool isAlarming = false;
+bool stopAlarm = false;
+ApcScheduleCallbackDef *alarmDisable_schedule = NULL;
 
 uint32 biliSubscriberCount = 0;
 uint32 youTubeSubscriberCount = 0;
@@ -28,7 +34,7 @@ void timeShowEffect(unsigned int areaCount, unsigned int frameCount)
   DateTime now = m_rtc->now();
   if (frameCount < 5)
   {
-    APC.plBegin().plPid(0).plCoord(7, 1).plColor();
+    APC.plBegin(0).plCoord(7, 1).plColor();
     char timeChar[6];
     if (frameCount % 2 == 0)
     {
@@ -42,7 +48,7 @@ void timeShowEffect(unsigned int areaCount, unsigned int frameCount)
   }
   else
   {
-    APC.plBegin().plPid(0).plCoord(6, 1).plColor();
+    APC.plBegin(0).plCoord(6, 1).plColor();
     char timeChar[6];
     sprintf(timeChar, "%02d/%02d", now.month(), now.day());
     APC.plStr(String(timeChar)).plCallback();
@@ -52,7 +58,7 @@ void timeShowEffect(unsigned int areaCount, unsigned int frameCount)
     w = 6;
   for (int i = 0; i < 7; i++)
   {
-    APC.plBegin().plPid(6).plCoord(3 + 4 * i, 7).plCoord(3 + 4 * i + 2, 7);
+    APC.plBegin(6).plCoord(3 + 4 * i, 7).plCoord(3 + 4 * i + 2, 7);
     if (w == i)
     {
       APC.plColor();
@@ -86,7 +92,7 @@ void bilibiliEffect(unsigned int areaCount, unsigned int frameCount)
   else if (areaCount == 1)
   {
     String num = APC.subscriberCountFormat(biliSubscriberCount);
-    APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+    APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
   }
 }
 
@@ -111,21 +117,21 @@ void youtubeEffect(unsigned int areaCount, unsigned int frameCount)
   else if (areaCount == 1)
   {
     String num = APC.subscriberCountFormat(youTubeSubscriberCount);
-    APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+    APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
   }
 }
 
-const uint32 weatherColorArr[3] ICACHE_RODATA_ATTR = {0x000000, 0xFF0000, 0xFFFFFF};
+const uint32 weatherColorArr[3] ICACHE_RODATA_ATTR = {0x000000, 0x1ab5ed, 0xffc106};
 const uint32 weatherPixels[16] ICACHE_RODATA_ATTR =
     {
-        0x00000002, 0x02000000,
-        0x00000201, 0x01020000,
-        0x00000201, 0x01020000,
-        0x00000201, 0x01020000,
-        0x00000201, 0x01020000,
-        0x00000201, 0x01020000,
-        0x00020201, 0x01020200,
-        0x00020202, 0x02020200};
+        0x00000000, 0x02020000,
+        0x00000002, 0x02020200,
+        0x00000202, 0x02020202,
+        0x00000101, 0x02020202,
+        0x00010101, 0x01020200,
+        0x01010101, 0x01010000,
+        0x01010101, 0x01010100,
+        0x00000000, 0x00000000};
 
 void weatherEffect(unsigned int areaCount, unsigned int frameCount)
 {
@@ -138,27 +144,27 @@ void weatherEffect(unsigned int areaCount, unsigned int frameCount)
     if (frameCount < 5)
     {
       String num = String(weatherInfo[1]) + "C";
-      APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+      APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
     }
     else
     {
       String num = String(weatherInfo[2]) + "%";
-      APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+      APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
     }
   }
 }
 
-const uint32 indoorColorArr[3] ICACHE_RODATA_ATTR = {0x000000, 0xFF0000, 0xFFFFFF};
+const uint32 indoorColorArr[3] ICACHE_RODATA_ATTR = {0x000000, 0xc40c0c, 0xFFFFFF};
 const uint32 indoorPixels[16] ICACHE_RODATA_ATTR =
     {
-        0x00000002, 0x02000000,
-        0x00000200, 0x00020000,
-        0x00020001, 0x01020200,
-        0x02000001, 0x01000002,
-        0x02000001, 0x01000002,
-        0x02000001, 0x01000002,
-        0x02000002, 0x02000002,
-        0x02000002, 0x02000002};
+        0x00000002, 0x00000000,
+        0x00000200, 0x02000000,
+        0x00000201, 0x02000000,
+        0x00000201, 0x02000000,
+        0x00000201, 0x02000000,
+        0x00020101, 0x01020000,
+        0x00020101, 0x01020000,
+        0x00000202, 0x02000000};
 
 void indoorEffect(unsigned int areaCount, unsigned int frameCount)
 {
@@ -171,12 +177,61 @@ void indoorEffect(unsigned int areaCount, unsigned int frameCount)
     if (frameCount < 5)
     {
       String num = String(inDoorInfo[0]) + "C";
-      APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+      APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
     }
     else
     {
       String num = String(inDoorInfo[1]) + "%";
-      APC.plBegin().plPid(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+      APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1).plColor().plStr(num).plCallback();
+    }
+  }
+}
+
+const uint32 cddColorArr[3] ICACHE_RODATA_ATTR = {0x000000, 0x1857ff, 0xFFFFFF};
+const uint32 cddPixels[16] ICACHE_RODATA_ATTR =
+    {
+        0x02020202, 0x02020200,
+        0x00020100, 0x01020000,
+        0x00000201, 0x02000000,
+        0x00000002, 0x00000000,
+        0x00000002, 0x00000000,
+        0x00000200, 0x02000000,
+        0x00020001, 0x00020000,
+        0x02020202, 0x02020200};
+
+void countdownDayEffect(unsigned int areaCount, unsigned int frameCount)
+{
+  DateTime now = DateTime(m_rtc->now().year(), m_rtc->now().month(), m_rtc->now().day());
+  String target(m_apcConfigDef->cdd_date);
+  int year = target.substring(0, 4).toInt();
+  int month = target.substring(5, 7).toInt();
+  int day = target.substring(8, 10).toInt();
+  DateTime tar = DateTime(year, month, day);
+  TimeSpan diff = TimeSpan(tar.unixtime() - now.unixtime());
+  int diffDay = diff.days();
+  if (areaCount == 0)
+  {
+    String num = String(diffDay);
+    APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(num.length(), 4, 6), 1);
+    if (diffDay <= 0)
+    {
+      APC.plColor(255, 0, 0);
+    }
+    else
+    {
+      APC.plColor();
+    }
+    APC.plStr(num).plCallback();
+  }
+  else if(areaCount == 1)
+  {
+    APC.drawColorIndexFrame(cddColorArr, 8, 8, cddPixels);
+  }
+  else
+  {
+    if (diffDay <= 0 && !isAlarming)
+    {
+      APC.plBegin(18).plByte(4).plCallback();
     }
   }
 }
@@ -225,9 +280,9 @@ void updateWeatherInfo()
   }
 }
 
-void updateIndoorInfo()
+void updateSensorInfo()
 {
-  APC.plBegin().plPid(12).plCallback();
+  APC.plBegin(12).plCallback();
 }
 
 void ApePixelClock::ramCheck(const char *info)
@@ -239,6 +294,18 @@ void schedule_callback(int callbackId)
 {
   switch (callbackId)
   {
+  case 201:
+    APC.checkAlarm();
+    break;
+  case 202:
+    Serial.println("schedule_callback");
+    APC.removeApcScheduleCallback(alarmDisable_schedule);
+    isAlarming = false;
+    stopAlarm = false;
+    break;
+  case 203:
+    APC.checkLDR();
+    break;
   case 1:
 
     break;
@@ -252,7 +319,8 @@ void schedule_callback(int callbackId)
     updateWeatherInfo();
     break;
   case 5:
-    updateIndoorInfo();
+    updateSensorInfo();
+    break;
   default:
     break;
   }
@@ -315,6 +383,17 @@ void ApePixelClock::addApcEffects()
   apcEffect->areaDef[1] = {8, 0, 24, 8, 10, 1000};
   this->addApcEffect(apcEffect);
 #endif
+
+#if (COUNTDOWN_DAY_SHOW == 1)
+  apcEffect = new ApcEffectDef();
+  memset(apcEffect, 0, sizeof(ApcEffectDef));
+  apcEffect->effectId = 6;
+  apcEffect->autoChangeTime = 10000;
+  apcEffect->areaDef[0] = {8, 0, 24, 8, 10, 1000};
+  apcEffect->areaDef[1] = {0, 0, 8, 8, 1, 0};
+  apcEffect->areaDef[2] = {0, 0, 0, 0, 4, 3000};
+  this->addApcEffect(apcEffect);
+#endif
 }
 
 void ApePixelClock::addApcEffect(ApcEffectDef *apcEffect)
@@ -341,13 +420,36 @@ void ApePixelClock::addApcEffect(ApcEffectDef *apcEffect)
   }
 }
 
-void ApePixelClock::addApcScheduleCallback(int callbackId, unsigned long callbackTime)
+ApcScheduleCallbackDef *ApePixelClock::addApcScheduleCallback(int callbackId, unsigned long callbackTime, bool callbackNow)
 {
   ApcScheduleCallbackDef *apcScheduleCallback = new ApcScheduleCallbackDef();
   apcScheduleCallback->callbackId = callbackId;
   apcScheduleCallback->callbackTime = callbackTime;
-  apcScheduleCallback->currentRefreshTime = 0;
+  if (callbackNow)
+  {
+    apcScheduleCallback->currentRefreshTime = 0;
+  }
+  else
+  {
+    apcScheduleCallback->currentRefreshTime = callbackTime;
+  }
+
   apcScheduleCallbacks.push_back(apcScheduleCallback);
+}
+
+void ApePixelClock::removeApcScheduleCallback(ApcScheduleCallbackDef *callbackDef)
+{
+  for (auto x = apcScheduleCallbacks.begin(); x != apcScheduleCallbacks.end();)
+  {
+    if (callbackDef == *x)
+    {
+      apcScheduleCallbacks.erase(x);
+      delete callbackDef;
+      callbackDef = NULL;
+      break;
+    }
+    ++x;
+  }
 }
 
 void apcEffect_callback(int effectId, unsigned int areaCount, unsigned int frameCount)
@@ -369,6 +471,9 @@ void apcEffect_callback(int effectId, unsigned int areaCount, unsigned int frame
   case 5:
     indoorEffect(areaCount, frameCount);
     break;
+  case 6:
+    countdownDayEffect(areaCount, frameCount);
+    break;
   default:
     break;
   }
@@ -384,12 +489,74 @@ void ApePixelClock::apcSetup()
   callbackCheckTime = millis();
   preCheckTime = millis();
   this->effectDisplayInit();
+
+  APC.plBegin(13).plByte(m_apcConfigDef->brightness).plCallback();
+  APC.plBegin(17).plByte(m_apcConfigDef->volume).plCallback();
 }
 
 void ApePixelClock::apcLoop()
 {
-  this->renderCheck();
-  this->apcCallbackAction();
+  if (!myMenue.isMenueMode())
+  {
+    this->renderCheck();
+    this->apcCallbackAction();
+  }
+}
+
+void ApePixelClock::checkAlarm()
+{
+  Serial.println(m_apcConfigDef->alarm_enable);
+  if (m_apcConfigDef->alarm_enable && !isAlarming)
+  {
+    String alarmTarget = String(m_apcConfigDef->alarm_time);
+    DateTime now = m_rtc->now();
+    char timeChar[6];
+    sprintf(timeChar, "%02d:%02d", now.hour(), now.minute());
+    String alarmNow = String(timeChar);
+    Serial.println(alarmTarget);
+    Serial.println(alarmNow);
+    if (alarmTarget == alarmNow)
+    {
+      Serial.println("isAlarming");
+      isAlarming = true;
+      APC.plBegin(18).plByte(11).plCallback();
+      alarmDisable_schedule = this->addApcScheduleCallback(202, 60000, false);
+    }
+  }
+}
+
+void ApePixelClock::checkLDR()
+{
+  updateSensorInfo();
+  Serial.println(ldrInfo);
+  if (ldrInfo < 0)
+  {
+  }
+  else if (ldrInfo < 50)
+  {
+    APC.plBegin(13).plByte(m_apcConfigDef->brightness * (0 / 100.0)).plCallback();
+  }
+  else if (ldrInfo < 500)
+  {
+    APC.plBegin(13).plByte(m_apcConfigDef->brightness * (30 / 100.0)).plCallback();
+  }
+  else if (ldrInfo < 2000)
+  {
+    APC.plBegin(13).plByte(m_apcConfigDef->brightness * (60 / 100.0)).plCallback();
+  }
+  else if (ldrInfo < 5000)
+  {
+    APC.plBegin(13).plByte(m_apcConfigDef->brightness * (80 / 100.0)).plCallback();
+  }
+  else
+  {
+    APC.plBegin(13).plByte(m_apcConfigDef->brightness * (100 / 100.0)).plCallback();
+  }
+}
+
+ApcConfigDef *ApePixelClock::myApcConfigDef()
+{
+  return m_apcConfigDef;
 }
 
 void ApePixelClock::renderCheck()
@@ -474,12 +641,22 @@ void ApePixelClock::apcCallbackAction()
   callbackCheckTime = millis();
 }
 
-void ApePixelClock::apcEffectChangeAction()
+void ApePixelClock::apcEffectChangeAction(bool reverse)
 {
-  apcEffectPointer++;
-  if (apcEffectPointer >= (int)apcEffects.size())
+  if (!reverse)
   {
-    apcEffectPointer = 0;
+    apcEffectPointer++;
+    if (apcEffectPointer >= (int)apcEffects.size())
+    {
+      apcEffectPointer = 0;
+    }
+  }else
+  {
+    apcEffectPointer--;
+    if (apcEffectPointer < 0)
+    {
+      apcEffectPointer = (int)apcEffects.size()-1;
+    }
   }
   ApcEffectDef *apcEffect = apcEffects[apcEffectPointer];
   this->apcEffectRefresh(apcEffect);
@@ -511,16 +688,16 @@ void ApePixelClock::apcEffectRefresh(ApcEffectDef *apcEffect)
 
 void ApePixelClock::show()
 {
-  APC.plBegin().plPid(8).plCallback();
+  APC.plBegin(8).plCallback();
 }
 void ApePixelClock::clear()
 {
-  APC.plBegin().plPid(9).plCallback();
+  APC.plBegin(9).plCallback();
 }
 
 void ApePixelClock::areaClear()
 {
-  APC.plBegin().plPid(23).plCoord(0, 0).plByte(m_areaWidth).plByte(m_areaHeight).plColor(0, 0, 0).plCallback();
+  APC.plBegin(23).plCoord(0, 0).plByte(m_areaWidth).plByte(m_areaHeight).plColor(0, 0, 0).plCallback();
 }
 
 void ApePixelClock::renderAction(ApcEffectDef *apcEffect, bool needArea)
@@ -543,20 +720,75 @@ void ApePixelClock::publish(String &s)
   if (infoType == "button")
   {
     Serial.println("button Action");
+    if (isAlarming && !stopAlarm)
+    {
+      APC.plBegin(19).plCallback();
+      stopAlarm = true;
+    }
+    if (json["left"] == "short")
+    {
+      if (myMenue.isMenueMode())
+      {
+        myMenue.btnPressed(0, 0);
+      }
+      else
+      {
+        this->apcEffectChangeAction(true);
+      }
+    }
+    else if (json["left"] == "long")
+    {
+      myMenue.btnPressed(0, 1);
+    }
+    else if (json["middle"] == "short")
+    {
+      myMenue.btnPressed(1, 0);
+    }
+    else if (json["middle"] == "long")
+    {
+      myMenue.btnPressed(1, 1);
+    }
+    else if (json["right"] == "short")
+    {
+      if (myMenue.isMenueMode())
+      {
+        myMenue.btnPressed(2, 0);
+      }
+      else
+      {
+        this->apcEffectChangeAction(false);
+      }
+    }
+    else if (json["right"] == "long")
+    {
+      myMenue.btnPressed(2, 1);
+    }
   }
   else if (infoType == "MatrixInfo")
   {
     inDoorInfo[0] = json["Temp"].as<int>();
     inDoorInfo[1] = json["Hum"].as<int>();
     inDoorInfo[2] = json["hPa"].as<int>();
+    if (json["LUX"])
+    {
+      ldrInfo = json["LUX"].as<float>();
+    }
+    else
+    {
+      ldrInfo = -1;
+    }
   }
 }
 
-void ApePixelClock::systemInit(MQTT_CALLBACK_SIGNATURE, RTC_DS1307 *rtc)
+void ApePixelClock::systemInit(MQTT_CALLBACK_SIGNATURE, RTC_DS1307 *rtc, ApcConfigDef *apcConfigDef)
 {
+
   this->callback = callback;
   m_rtc = rtc;
+  m_apcConfigDef = apcConfigDef;
   apcEffectPointer = 0;
+  this->addApcScheduleCallback(201, 1000);
+  this->addApcScheduleCallback(203, 1000);
   this->addApcEffects();
   APC.apcSetup();
 }
@@ -675,13 +907,9 @@ String ApePixelClock::httpsRequest(const String &url, int *errCode)
   return res;
 }
 
-ApePixelClock &ApePixelClock::plBegin()
+ApePixelClock &ApePixelClock::plBegin(byte pid)
 {
   payLoadPointer = 0;
-  return APC;
-}
-ApePixelClock &ApePixelClock::plPid(byte pid)
-{
   payload[payLoadPointer++] = pid;
   return APC;
 }
@@ -772,7 +1000,7 @@ void ApePixelClock::drawColorIndexFrame(const uint32 *colorMap,
     {
       int count = y * (((width - 1) / 4) + 1) + (x / 4);
       unsigned long color = colorMap[pixels[count] >> (((3 - x % 4)) * 8) & 0xFF];
-      APC.plBegin().plPid(4).plCoord(x, y).plColor(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF).plCallback();
+      APC.plBegin(4).plCoord(x, y).plColor(color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF).plCallback();
     }
   }
 }

@@ -27,7 +27,6 @@
 #include <BME280_t.h>
 #include "Adafruit_HTU21DF.h"
 #include "DFRobotDFPlayerMini.h"
-#include "MenueControl/MenueControl.h"
 
 // instantiate temp sensor
 BME280<> BMESensor;
@@ -39,7 +38,6 @@ int tempState = false;		// 0 = None ; 1 = BME280 ; 2 = htu21d ; 3 = DHT11
 int ldrState = 1000;		// 0 = None
 bool USBConnection = false; // true = usb...
 bool WIFIConnection = false;
-bool LiteMode = true;
 int connectionTimout;
 
 bool MatrixType2 = false;
@@ -54,11 +52,11 @@ PubSubClient client(espClient);
 
 WiFiManager wifiManager;
 
-MenueControl myMenue;
-
 //update
 ESP8266WebServer server(80);
 const char *serverIndex = "<form method='POST' action='/update' enctype='multipart/form-data'><input type='file' name='update'><input type='submit' value='Update'></form>";
+
+ApcConfigDef apcConfigDef;
 
 //resetdetector
 #define DRD_TIMEOUT 5.0
@@ -167,7 +165,7 @@ bool saveConfig()
 	JsonObject &json = jsonBuffer.createObject();
 	json["awtrix_server"] = awtrix_server;
 	json["MatrixType"] = MatrixType2;
-	json["LiteMode"] = LiteMode;
+	json["LiteMode"] = apcConfigDef.liteMode;
 	json["matrixCorrection"] = matrixTempCorrection;
 	json["Port"] = Port;
 
@@ -184,13 +182,33 @@ bool saveConfig()
 		{
 			Serial.println("failed to open config file for writing");
 		}
-
 		return false;
 	}
 
 	json.printTo(configFile);
 	configFile.close();
+
+	
+
 	//end save
+	return true;
+}
+
+bool saveLiteConfig()
+{
+	DynamicJsonBuffer jsonBuffer;
+	JsonObject &json = jsonBuffer.createObject();
+	json["alarm_enable"] = apcConfigDef.alarm_enable;
+	json["alarm_time"] = apcConfigDef.alarm_time;
+	json["cdd_date"] = apcConfigDef.cdd_date;
+	Serial.print("volume:");
+				Serial.println(apcConfigDef.volume);
+	json["volume"] = apcConfigDef.volume;
+	json["brightness"] = apcConfigDef.brightness;
+	File liteConfigFile = SPIFFS.open("/LiteConfig.json", "w");
+	json.printTo(liteConfigFile);
+	liteConfigFile.close();
+
 	return true;
 }
 
@@ -211,7 +229,7 @@ void sendToServer(String s)
 	}
 	else
 	{
-		if (!LiteMode)
+		if (!apcConfigDef.liteMode)
 		{
 			client.publish("matrixClient", s.c_str());
 		}
@@ -246,6 +264,7 @@ int checkTaster(int nr)
 		{
 			pushed[nr] = true;
 			timeoutTaster[nr] = millis();
+			delay(20);
 		}
 		break;
 	case 1:
@@ -253,6 +272,7 @@ int checkTaster(int nr)
 		{
 			pushed[nr] = true;
 			timeoutTaster[nr] = millis();
+			delay(20);
 		}
 		break;
 	case 2:
@@ -260,6 +280,7 @@ int checkTaster(int nr)
 		{
 			pushed[nr] = true;
 			timeoutTaster[nr] = millis();
+			delay(20);
 		}
 		break;
 	case 3:
@@ -267,6 +288,7 @@ int checkTaster(int nr)
 		{
 			pushed[nr] = true;
 			timeoutTaster[nr] = millis();
+			delay(20);
 		}
 		break;
 	}
@@ -284,7 +306,7 @@ int checkTaster(int nr)
 			case 0:
 				root["left"] = "short";
 				pressedTaster = 1;
-				//Serial.println("LEFT: normaler Tastendruck");
+				Serial.println("LEFT: normaler Tastendruck");
 				break;
 			case 1:
 				root["middle"] = "short";
@@ -936,7 +958,8 @@ void updateMatrix(byte payload[], int length)
 				root["Temp"] = htu.readTemperature();
 				root["Hum"] = htu.readHumidity();
 				root["hPa"] = 0;
-			}else if (tempState == 3)
+			}
+			else if (tempState == 3)
 			{
 				root["Temp"] = dht.readTemperature();
 				root["Hum"] = dht.readHumidity();
@@ -1147,6 +1170,43 @@ void updateMatrix(byte payload[], int length)
 			matrix->fillRect(x0_coordinate, y0_coordinate, width, height, matrix->Color(payload[7], payload[8], payload[9]));
 			break;
 		}
+		case 24:
+		{
+			Serial.println("myMP3.playFolder");
+			myMP3.playFolder(payload[1], payload[2]);
+			myMP3.loopFolder(payload[1]);
+			break;
+		}
+		case 25:
+		{
+			Serial.println("next");
+			myMP3.next();
+			break;
+		}
+		case 26:
+		{
+			Serial.println("next");
+			myMP3.previous();
+			break;
+		}
+		case 27:
+		{
+			Serial.println("stop");
+			myMP3.stop();
+			break;
+		}
+		case 30:
+		{
+			saveLiteConfig();
+			break;
+		}
+		case 31:
+		{
+			apcConfigDef.liteMode = payload[1];
+			saveConfig();
+			ESP.reset();	
+			break;
+		}
 		}
 	}
 }
@@ -1302,7 +1362,7 @@ void baseInit()
 
 				strcpy(awtrix_server, json["awtrix_server"]);
 				MatrixType2 = json["MatrixType"].as<bool>();
-				LiteMode = json["LiteMode"].as<bool>();
+				apcConfigDef.liteMode = json["LiteMode"].as<bool>();
 				matrixTempCorrection = json["matrixCorrection"].as<int>();
 
 				if (json.containsKey("Port"))
@@ -1311,6 +1371,32 @@ void baseInit()
 				}
 			}
 			configFile.close();
+		}
+
+		if (!(SPIFFS.exists("/LiteConfig.json")))
+		{
+			SPIFFS.open("/LiteConfig.json", "w+");
+		}
+		File liteConfigFile = SPIFFS.open("/LiteConfig.json", "r");
+		if (liteConfigFile)
+		{
+			size_t size = liteConfigFile.size();
+			// Allocate a buffer to store contents of the file.
+			std::unique_ptr<char[]> buf(new char[size]);
+			liteConfigFile.readBytes(buf.get(), size);
+			DynamicJsonBuffer jsonBuffer;
+			JsonObject &json = jsonBuffer.parseObject(buf.get());
+			if (json.success())
+			{
+				apcConfigDef.alarm_enable = json["alarm_enable"].as<bool>();
+				apcConfigDef.volume = json["volume"].as<int>();
+				Serial.print("volume:");
+				Serial.println(apcConfigDef.volume);
+				apcConfigDef.brightness = json["brightness"].as<int>();
+				strcpy(apcConfigDef.alarm_time, json["alarm_time"]);
+				strcpy(apcConfigDef.cdd_date, json["cdd_date"]);
+			}
+			liteConfigFile.close();
 		}
 	}
 	else
@@ -1406,6 +1492,24 @@ void matrixInit()
 	matrix->setBrightness(80);
 	matrix->setFont(&TomThumb);
 }
+static const char *serverConfigHtmlBegin ICACHE_RODATA_ATTR =
+	"<html><head><title>AwtrixLite</title>																		\
+<meta name='viewport' 																						\
+content='width=device-width, initial-scale=1.0, minimum-scale=0.5, maximum-scale=2.0, user-scalable=yes' /> \
+<style>																										\
+ol{padding:0;margin:0;list-style:none;}																		\
+ol li{padding:0;clear:both;margin:0 0 10px 0;}																\
+label{float:left;width:150px;}</style>																		\
+</head>																										\
+<body>																										\
+<form method='post'action='/config/post'>																	\
+<fieldset id='Personal_information'>																		\
+<ol>";
+
+static const char *serverConfigHtmlEnd ICACHE_RODATA_ATTR =
+	"<li><center><input type='submit'value='Submit'/></center></li>												\
+</ol>																										\
+</fieldset></form></body></html><div style='display:none'>";
 void netInit()
 {
 	wifiManager.setAPStaticIPConfig(IPAddress(172, 217, 28, 1), IPAddress(172, 217, 28, 1), IPAddress(255, 255, 255, 0));
@@ -1444,6 +1548,39 @@ void netInit()
 		server.sendHeader("Connection", "close");
 		server.send(200, "text/html", serverIndex);
 	});
+
+	server.on("/config", HTTP_GET, []() {
+		server.sendContent_P(serverConfigHtmlBegin);
+
+		server.sendContent_P("<li><label>Alarm Time</label><input type='checkbox'name='alarm_enable'");
+		if (apcConfigDef.alarm_enable)
+		{
+			server.sendContent_P("checked");
+		}
+		server.sendContent_P("/><input type='time'value='");
+		server.sendContent(apcConfigDef.alarm_time);
+		server.sendContent_P("'name='alarm_time'/></li>");
+
+		server.sendContent_P("<li><label>CountDown Day</label><input type='date'value='");
+		server.sendContent(apcConfigDef.cdd_date);
+		server.sendContent_P("'name='cdd_date'/></li>");
+
+		server.sendContent_P(serverConfigHtmlEnd);
+		server.send_P(200, "text/html", "</div>");
+	});
+
+	server.on("/config/post", HTTP_POST, []() {
+		server.sendHeader("Connection", "close");
+		server.send(200, "text/html", "OK!");
+		Serial.println(server.arg("alarm_time"));
+		Serial.println(server.arg("alarm_enable"));
+		Serial.println(server.arg("cdd_date"));
+		apcConfigDef.alarm_enable = server.arg("alarm_enable") == "on" ? true : false;
+		strcpy(apcConfigDef.alarm_time, server.arg("alarm_time").c_str());
+		strcpy(apcConfigDef.cdd_date, server.arg("cdd_date").c_str());
+		saveLiteConfig();
+	});
+
 	server.on(
 		"/update", HTTP_POST, []() {
       server.sendHeader("Connection", "close");
@@ -1482,7 +1619,7 @@ void netInit()
 	{
 		strcpy(awtrix_server, custom_awtrix_server.getValue());
 		MatrixType2 = (strncmp(p_MatrixType2.getValue(), "T", 1) == 0);
-		LiteMode = (strncmp(p_LiteMode.getValue(), "T", 1) == 0);
+		apcConfigDef.liteMode = (strncmp(p_LiteMode.getValue(), "T", 1) == 0);
 		strcpy(Port, custom_port.getValue());
 		//USBConnection = (strncmp(p_USBConnection.getValue(), "T", 1) == 0);
 		saveConfig();
@@ -1561,7 +1698,7 @@ void setup()
 	myTime3 = millis() - 500;
 	myCounter = 0;
 	myCounter2 = 0;
-	if (!LiteMode)
+	if (!apcConfigDef.liteMode)
 	{
 		for (int x = 32; x >= -90; x--)
 		{
@@ -1586,7 +1723,7 @@ void setup()
 		// 	matrix->show();
 		// 	delay(40);
 		// }
-		APC.systemInit(callback, &rtc);
+		APC.systemInit(callback, &rtc, &apcConfigDef);
 	}
 	pinMode(D0, INPUT);
 	pinMode(D0, INPUT_PULLUP);
@@ -1638,13 +1775,14 @@ void onLineModeLoop()
 	}
 }
 
-
 void loop()
 {
-	APC.ramCheck("loop begin");
+	// APC.ramCheck("loop begin");
 	server.handleClient();
 	//is needed for the server search animation
-	if (LiteMode)
+	// Serial.println(photocell.getCurrentLux());
+
+	if (apcConfigDef.liteMode)
 	{
 		APC.apcLoop();
 	}
@@ -1663,7 +1801,7 @@ void loop()
 			isr_flag = 0;
 			attachInterrupt(APDS9960_INT, interruptRoutine, FALLING);
 		}
-		if (millis() - connectionTimout > 20000 && !LiteMode)
+		if (millis() - connectionTimout > 20000 && !apcConfigDef.liteMode)
 		{
 			USBConnection = false;
 			WIFIConnection = false;
@@ -1673,5 +1811,5 @@ void loop()
 	checkTaster(0);
 	checkTaster(1);
 	checkTaster(2);
-	APC.ramCheck("loop end");
+	// APC.ramCheck("loop end");
 }
