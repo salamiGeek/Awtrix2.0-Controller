@@ -298,7 +298,6 @@ void schedule_callback(int callbackId)
     APC.checkAlarm();
     break;
   case 202:
-    Serial.println("schedule_callback");
     APC.removeApcScheduleCallback(alarmDisable_schedule);
     isAlarming = false;
     stopAlarm = false;
@@ -505,7 +504,6 @@ void ApePixelClock::apcLoop()
 
 void ApePixelClock::checkAlarm()
 {
-  Serial.println(m_apcConfigDef->alarm_enable);
   if (m_apcConfigDef->alarm_enable && !isAlarming)
   {
     String alarmTarget = String(m_apcConfigDef->alarm_time);
@@ -513,11 +511,8 @@ void ApePixelClock::checkAlarm()
     char timeChar[6];
     sprintf(timeChar, "%02d:%02d", now.hour(), now.minute());
     String alarmNow = String(timeChar);
-    Serial.println(alarmTarget);
-    Serial.println(alarmNow);
     if (alarmTarget == alarmNow)
     {
-      Serial.println("isAlarming");
       isAlarming = true;
       APC.plBegin(18).plByte(11).plCallback();
       alarmDisable_schedule = this->addApcScheduleCallback(202, 60000, false);
@@ -528,7 +523,6 @@ void ApePixelClock::checkAlarm()
 void ApePixelClock::checkLDR()
 {
   updateSensorInfo();
-  Serial.println(ldrInfo);
   if (ldrInfo < 0)
   {
   }
@@ -719,7 +713,6 @@ void ApePixelClock::publish(String &s)
   String infoType = json["type"].as<String>();
   if (infoType == "button")
   {
-    Serial.println("button Action");
     if (isAlarming && !stopAlarm)
     {
       APC.plBegin(19).plCallback();

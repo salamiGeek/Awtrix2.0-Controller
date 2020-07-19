@@ -201,8 +201,6 @@ bool saveLiteConfig()
 	json["alarm_enable"] = apcConfigDef.alarm_enable;
 	json["alarm_time"] = apcConfigDef.alarm_time;
 	json["cdd_date"] = apcConfigDef.cdd_date;
-	Serial.print("volume:");
-				Serial.println(apcConfigDef.volume);
 	json["volume"] = apcConfigDef.volume;
 	json["brightness"] = apcConfigDef.brightness;
 	File liteConfigFile = SPIFFS.open("/LiteConfig.json", "w");
@@ -306,7 +304,7 @@ int checkTaster(int nr)
 			case 0:
 				root["left"] = "short";
 				pressedTaster = 1;
-				Serial.println("LEFT: normaler Tastendruck");
+				//Serial.println("LEFT: normaler Tastendruck");
 				break;
 			case 1:
 				root["middle"] = "short";
@@ -1172,26 +1170,22 @@ void updateMatrix(byte payload[], int length)
 		}
 		case 24:
 		{
-			Serial.println("myMP3.playFolder");
 			myMP3.playFolder(payload[1], payload[2]);
 			myMP3.loopFolder(payload[1]);
 			break;
 		}
 		case 25:
 		{
-			Serial.println("next");
 			myMP3.next();
 			break;
 		}
 		case 26:
 		{
-			Serial.println("next");
 			myMP3.previous();
 			break;
 		}
 		case 27:
 		{
-			Serial.println("stop");
 			myMP3.stop();
 			break;
 		}
@@ -1390,8 +1384,6 @@ void baseInit()
 			{
 				apcConfigDef.alarm_enable = json["alarm_enable"].as<bool>();
 				apcConfigDef.volume = json["volume"].as<int>();
-				Serial.print("volume:");
-				Serial.println(apcConfigDef.volume);
 				apcConfigDef.brightness = json["brightness"].as<int>();
 				strcpy(apcConfigDef.alarm_time, json["alarm_time"]);
 				strcpy(apcConfigDef.cdd_date, json["cdd_date"]);
@@ -1572,9 +1564,9 @@ void netInit()
 	server.on("/config/post", HTTP_POST, []() {
 		server.sendHeader("Connection", "close");
 		server.send(200, "text/html", "OK!");
-		Serial.println(server.arg("alarm_time"));
-		Serial.println(server.arg("alarm_enable"));
-		Serial.println(server.arg("cdd_date"));
+		// Serial.println(server.arg("alarm_time"));
+		// Serial.println(server.arg("alarm_enable"));
+		// Serial.println(server.arg("cdd_date"));
 		apcConfigDef.alarm_enable = server.arg("alarm_enable") == "on" ? true : false;
 		strcpy(apcConfigDef.alarm_time, server.arg("alarm_time").c_str());
 		strcpy(apcConfigDef.cdd_date, server.arg("cdd_date").c_str());
