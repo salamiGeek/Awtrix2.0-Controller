@@ -86,7 +86,7 @@ public:
   String httpRequest(const String& url, int* errCode);
   String httpsRequest(const String& url, int* errCode);
   ApePixelClock &plBegin(byte pid);
-  ApePixelClock &plCoord(uint16_t x,uint16_t y);
+  ApePixelClock &plCoord(uint16_t x,uint16_t y,bool offset = true);
   ApePixelClock &plByte(byte b);
   ApePixelClock &plColor(byte r = (GLOBAL_TEXT_COLOR >> 16) & 0xFF,
                          byte g = (GLOBAL_TEXT_COLOR >> 8) & 0xFF,

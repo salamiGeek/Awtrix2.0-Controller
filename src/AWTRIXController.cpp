@@ -1706,15 +1706,15 @@ void setup()
 	}
 	else
 	{
-		// for (int x = 32; x >= -100; x--)
-		// {
-		// 	matrix->clear();
-		// 	matrix->setCursor(x, 6);
-		// 	matrix->print("LiteMode IP: " + WiFi.localIP().toString());
-		// 	matrix->setTextColor(matrix->Color(0, 255, 50));
-		// 	matrix->show();
-		// 	delay(40);
-		// }
+		for (int x = 32; x >= -100; x--)
+		{
+			matrix->clear();
+			matrix->setCursor(x, 6);
+			matrix->print("LiteMode IP: " + WiFi.localIP().toString());
+			matrix->setTextColor(matrix->Color(0, 255, 50));
+			matrix->show();
+			delay(40);
+		}
 		APC.systemInit(callback, &rtc, &apcConfigDef);
 	}
 	pinMode(D0, INPUT);

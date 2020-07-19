@@ -223,7 +223,7 @@ void countdownDayEffect(unsigned int areaCount, unsigned int frameCount)
     }
     APC.plStr(num).plCallback();
   }
-  else if(areaCount == 1)
+  else if (areaCount == 1)
   {
     APC.drawColorIndexFrame(cddColorArr, 8, 8, cddPixels);
   }
@@ -644,12 +644,13 @@ void ApePixelClock::apcEffectChangeAction(bool reverse)
     {
       apcEffectPointer = 0;
     }
-  }else
+  }
+  else
   {
     apcEffectPointer--;
     if (apcEffectPointer < 0)
     {
-      apcEffectPointer = (int)apcEffects.size()-1;
+      apcEffectPointer = (int)apcEffects.size() - 1;
     }
   }
   ApcEffectDef *apcEffect = apcEffects[apcEffectPointer];
@@ -906,10 +907,14 @@ ApePixelClock &ApePixelClock::plBegin(byte pid)
   payload[payLoadPointer++] = pid;
   return APC;
 }
-ApePixelClock &ApePixelClock::plCoord(uint16_t x, uint16_t y)
+ApePixelClock &ApePixelClock::plCoord(uint16_t x, uint16_t y, bool offset)
 {
-  x += m_offsetX;
-  x += m_offsetY;
+  if (offset)
+  {
+    x += m_offsetX;
+    x += m_offsetY;
+  }
+
   payload[payLoadPointer++] = (x >> 8) & 0xFF;
   payload[payLoadPointer++] = (x)&0xFF;
   payload[payLoadPointer++] = (y >> 8) & 0xFF;

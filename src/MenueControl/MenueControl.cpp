@@ -238,54 +238,52 @@ void MenueControl::menueRender()
     case 10:
     {
         String menue = "Player";
-        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1).plColor().plStr(menue).plCallback();
+        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1,false).plColor().plStr(menue).plCallback();
     }
     break;
     case 100:
     {
-        APC.plBegin(3).plCoord(15, 3).plByte(3).plColor().plCallback();
-        APC.plBegin(3).plCoord(15, 4).plByte(3).plColor().plCallback();
-        APC.plBegin(3).plCoord(16, 3).plByte(3).plColor().plCallback();
-        APC.plBegin(3).plCoord(16, 4).plByte(3).plColor().plCallback();
-        APC.plBegin(6).plCoord(15, 2).plCoord(15, 5).plColor(0, 155, 0).plCallback();
-        APC.plBegin(6).plCoord(16, 3).plCoord(16, 4).plColor(0, 155, 0).plCallback();
-        // String menue = "Player";
-        // APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1).plColor().plStr(menue).plCallback();
+        APC.plBegin(3).plCoord(15, 3,false).plByte(3).plColor().plCallback();
+        APC.plBegin(3).plCoord(15, 4,false).plByte(3).plColor().plCallback();
+        APC.plBegin(3).plCoord(16, 3,false).plByte(3).plColor().plCallback();
+        APC.plBegin(3).plCoord(16, 4,false).plByte(3).plColor().plCallback();
+        APC.plBegin(6).plCoord(15, 2,false).plCoord(15, 5,false).plColor(0, 155, 0).plCallback();
+        APC.plBegin(6).plCoord(16, 3,false).plCoord(16, 4,false).plColor(0, 155, 0).plCallback();
     }
     break;
     case 11:
     {
         String menue = "Volume";
-        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1).plColor().plStr(menue).plCallback();
+        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1,false).plColor().plStr(menue).plCallback();
     }
     break;
     case 110:
     {
         ApcConfigDef *apcConfigDef = APC.myApcConfigDef();
         String menue = String(apcConfigDef->volume);
-        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1).plColor().plStr(menue).plCallback();
-        APC.plBegin(6).plCoord(0, 7).plCoord(apcConfigDef->volume, 7).plColor(0, 155, 0).plCallback();
+        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1,false).plColor().plStr(menue).plCallback();
+        APC.plBegin(6).plCoord(0, 7,false).plCoord(apcConfigDef->volume, 7,false).plColor(0, 155, 0).plCallback();
     }
     break;
     case 12:
     {
         String menue = "Bright";
-        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1).plColor().plStr(menue).plCallback();
+        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1,false).plColor().plStr(menue).plCallback();
     }
     break;
     case 120:
     {
         ApcConfigDef *apcConfigDef = APC.myApcConfigDef();
         String menue = String(apcConfigDef->brightness);
-        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1).plColor().plStr(menue).plCallback();
+        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1,false).plColor().plStr(menue).plCallback();
         int length = map(apcConfigDef->brightness, 0, 255, 0, 31);
-        APC.plBegin(6).plCoord(0, 7).plCoord(length, 7).plColor(0, 155, 0).plCallback();
+        APC.plBegin(6).plCoord(0, 7,false).plCoord(length, 7,false).plColor(0, 155, 0).plCallback();
     }
     break;
     case 13:
     {
         String menue = "OFFLINE";
-        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1).plColor().plStr(menue).plCallback();
+        APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1,false).plColor().plStr(menue).plCallback();
     }
     break;
     case 130:
@@ -293,11 +291,11 @@ void MenueControl::menueRender()
         if (isLiteMode)
         {
             String menue = String("Enable");
-            APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1).plColor(0,255,0).plStr(menue).plCallback();
+            APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1,false).plColor(0,255,0).plStr(menue).plCallback();
         }else
         {
             String menue = String("Disable");
-            APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1).plColor(255,0,0).plStr(menue).plCallback();
+            APC.plBegin(0).plCoord((uint16_t)APC.textCenterX(menue.length(), 4, 8), 1,false).plColor(255,0,0).plStr(menue).plCallback();
         }
     }
     break;
