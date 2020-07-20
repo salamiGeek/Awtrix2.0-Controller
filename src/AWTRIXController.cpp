@@ -687,7 +687,7 @@ void checkReset()
 		{
 			delay(1000);
 			SPIFFS.remove("/awtrix.json");
-
+			SPIFFS.remove("/LiteConfig.json");
 			SPIFFS.end();
 			delay(1000);
 		}
@@ -722,7 +722,7 @@ void checkReset()
 				{
 					delay(1000);
 					SPIFFS.remove("/awtrix.json");
-
+					SPIFFS.remove("/LiteConfig.json");
 					SPIFFS.end();
 					delay(1000);
 				}
@@ -1012,7 +1012,7 @@ void updateMatrix(byte payload[], int length)
 			{
 				delay(1000);
 				SPIFFS.remove("/awtrix.json");
-
+				SPIFFS.remove("/LiteConfig.json");
 				SPIFFS.end();
 				delay(1000);
 			}
@@ -1387,6 +1387,13 @@ void baseInit()
 				apcConfigDef.brightness = json["brightness"].as<int>();
 				strcpy(apcConfigDef.alarm_time, json["alarm_time"]);
 				strcpy(apcConfigDef.cdd_date, json["cdd_date"]);
+			}else
+			{
+				apcConfigDef.alarm_enable = false;
+				apcConfigDef.volume = 15;
+				apcConfigDef.brightness = 80;
+				strcpy(apcConfigDef.alarm_time, "08:00");
+				strcpy(apcConfigDef.cdd_date, "2020-09-06");
 			}
 			liteConfigFile.close();
 		}
