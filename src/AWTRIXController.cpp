@@ -166,6 +166,7 @@ bool saveConfig()
 	json["awtrix_server"] = awtrix_server;
 	json["MatrixType"] = MatrixType2;
 	json["LiteMode"] = apcConfigDef.liteMode;
+	json["OffLine"] = apcConfigDef.offLine;
 	json["matrixCorrection"] = matrixTempCorrection;
 	json["Port"] = Port;
 
@@ -1357,6 +1358,7 @@ void baseInit()
 				strcpy(awtrix_server, json["awtrix_server"]);
 				MatrixType2 = json["MatrixType"].as<bool>();
 				apcConfigDef.liteMode = json["LiteMode"].as<bool>();
+				apcConfigDef.offLine = json["OffLine"].as<bool>();
 				matrixTempCorrection = json["matrixCorrection"].as<int>();
 
 				if (json.containsKey("Port"))
@@ -1511,11 +1513,14 @@ static const char *serverConfigHtmlEnd ICACHE_RODATA_ATTR =
 </fieldset></form></body></html><div style='display:none'>";
 void netInit()
 {
+	// 	if(!apcConfigDef.liteMode)
+	// {
 	wifiManager.setAPStaticIPConfig(IPAddress(172, 217, 28, 1), IPAddress(172, 217, 28, 1), IPAddress(255, 255, 255, 0));
 	WiFiManagerParameter custom_awtrix_server("server", "AWTRIX Host", awtrix_server, 16);
 	WiFiManagerParameter custom_port("Port", "Matrix Port", Port, 5);
 	WiFiManagerParameter p_MatrixType2("MatrixType2", "MatrixType 2", "T", 2, "type=\"checkbox\" ", WFM_LABEL_BEFORE);
 	WiFiManagerParameter p_LiteMode("LiteMode", "Offline Mode", "T", 2, "type=\"checkbox\" ", WFM_LABEL_BEFORE);
+	WiFiManagerParameter p_OffLine("OffLine", "Deep Offline", "T", 2, "type=\"checkbox\" ", WFM_LABEL_BEFORE);
 	// Just a quick hint
 	// WiFiManagerParameter p_hint("<small>Please configure your AWTRIX Host IP (without Port), and check MatrixType 2 if the arrangement of the pixels is different<br></small><br><br>");
 	WiFiManagerParameter p_lineBreak_notext("<p></p>");
@@ -1529,11 +1534,12 @@ void netInit()
 	wifiManager.addParameter(&p_MatrixType2);
 	wifiManager.addParameter(&p_lineBreak_notext);
 	wifiManager.addParameter(&p_LiteMode);
+	wifiManager.addParameter(&p_OffLine);
 	//wifiManager.setCustomHeadElement("<style>html{ background-color: #607D8B;}</style>");
 
 	hardwareAnimatedSearch(0, 24, 0);
 
-	if (!wifiManager.autoConnect("AWTRIX Lite By YinBaiyuan", "awtrixxx"))
+	if (!apcConfigDef.liteMode && !wifiManager.autoConnect("AWTRIX Lite By YinBaiyuan", "awtrixxx"))
 	{
 		//reset and try again, or maybe put it to deep sleep
 		ESP.reset();
@@ -1619,6 +1625,7 @@ void netInit()
 		strcpy(awtrix_server, custom_awtrix_server.getValue());
 		MatrixType2 = (strncmp(p_MatrixType2.getValue(), "T", 1) == 0);
 		apcConfigDef.liteMode = (strncmp(p_LiteMode.getValue(), "T", 1) == 0);
+		apcConfigDef.offLine = (strncmp(p_OffLine.getValue(), "T", 1) == 0);
 		strcpy(Port, custom_port.getValue());
 		//USBConnection = (strncmp(p_USBConnection.getValue(), "T", 1) == 0);
 		saveConfig();

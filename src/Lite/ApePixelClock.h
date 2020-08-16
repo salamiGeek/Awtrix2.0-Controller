@@ -66,6 +66,7 @@ struct ApcConfigDef
   int  volume;
   int  brightness;
   bool liteMode;
+  bool offLine;
 };
 
 class ApePixelClock
