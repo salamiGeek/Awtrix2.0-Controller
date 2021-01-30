@@ -936,7 +936,7 @@ void updateMatrix(byte payload[], int length)
 			root["wifiquality"] = GetRSSIasQuality(WiFi.RSSI());
 			root["wifissid"] = WiFi.SSID();
 			root["IP"] = WiFi.localIP().toString();
-			if (ldrState != 0)
+			if (photocell.getCurrentLux()>1)
 			{
 				root["LUX"] = photocell.getCurrentLux();
 			}
