@@ -1539,7 +1539,7 @@ void netInit()
 
 	hardwareAnimatedSearch(0, 24, 0);
 
-	if (!apcConfigDef.liteMode && !wifiManager.autoConnect("AWTRIX Lite By YinBaiyuan", "awtrixxx"))
+	if (!apcConfigDef.liteMode && !wifiManager.autoConnect("AWTRIX By Taoyinan", "awtrixxx"))
 	{
 		//reset and try again, or maybe put it to deep sleep
 		ESP.reset();

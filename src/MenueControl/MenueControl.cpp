@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include "MenueControl.h"
-#include <String.h>
 #include "Lite/ApePixelClock.h"
 
 bool playButtonSound = true;
