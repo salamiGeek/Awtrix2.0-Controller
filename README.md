@@ -13,6 +13,6 @@
   
 # 已经修复的坑
 ## ArduinoSDK 
-在ESP8266 Arduino SDK 3.0.0+之后的版本有一些修改可能会导致FastLED库IO错误。知道问题原因后，解决方法也就清晰了，就是更改开发环境的SDK版本到2.6.3，首先在PlatformIO的工程配置文件（.ini）中更改。  
-[](res/修改arduino SDK版本.webp)
+在ESP8266 Arduino SDK 3.0.0+之后的版本有一些修改可能会导致FastLED库IO错误。知道问题原因后，解决方法也就清晰了，就是更改开发环境的SDK版本到2.6.3，首先在PlatformIO的工程配置文件（.ini）中更改。 
+![](res/修改arduino SDK版本.webp)
 参考作者：来自火星的Ace https://www.bilibili.com/read/cv13650707/ 出处：bilibili
