@@ -771,6 +771,29 @@ int GetRSSIasQuality(int rssi)
 
 void updateMatrix(byte payload[], int length)
 {
+	typedef enum {
+		cmdTypeDrawText,
+		cmdTypeDrawBMP,
+		cmdTypeDrawCircle,
+		cmdTypeFillCircle,
+		cmdTypeDrawPixel,
+		cmdTypeDrawRect,
+		cmdTypeDrawLine,
+		cmdTypeFillMatrix,
+		cmdTypeShow,
+		cmdTypeClear,
+		cmdTypePlay,
+		cmdTypeReset,
+		cmdTypeGetMatrixInfo,
+		cmdTypeSetBrightness,
+		cmdTypeSaveConfig,
+		cmdTypeConfigReset,
+		cmdTypeSendHeartbeat,
+		cmdTypeVolume,
+		cmdTypePlayMp3Folder,
+		cmdTypePlayStop,
+		cmdTypeChangeConnection,
+	} CommandType;
 	if (!ignoreServer)
 	{
 		int y_offset = 5;
@@ -782,426 +805,422 @@ void updateMatrix(byte payload[], int length)
 
 		connectionTimout = millis();
 
-		switch (payload[0])
-		{
-		case 0:
-		{
-			//Command 0: DrawText
-
-			//Prepare the coordinates
-			uint16_t x_coordinate = int(payload[1] << 8) + int(payload[2]);
-			uint16_t y_coordinate = int(payload[3] << 8) + int(payload[4]);
-
-			matrix->setCursor(x_coordinate + 1, y_coordinate + y_offset);
-			matrix->setTextColor(matrix->Color(payload[5], payload[6], payload[7]));
-			String myText = "";
-			for (int i = 8; i < length; i++)
+		switch (payload[0]) {
+			case cmdTypeDrawText:
 			{
-				char c = payload[i];
-				myText += c;
-			}
-			// Serial.println(myText);
-			matrix->print(utf8ascii(myText));
-			break;
-		}
-		case 1:
-		{
-			//Command 1: DrawBMP
+				//Command 0: DrawText
 
-			//Prepare the coordinates
-			uint16_t x_coordinate = int(payload[1] << 8) + int(payload[2]);
-			uint16_t y_coordinate = int(payload[3] << 8) + int(payload[4]);
+				//Prepare the coordinates
+				uint16_t x_coordinate = int(payload[1] << 8) + int(payload[2]);
+				uint16_t y_coordinate = int(payload[3] << 8) + int(payload[4]);
 
-			int16_t width = payload[5];
-			int16_t height = payload[6];
-
-			unsigned short colorData[width * height];
-
-			for (int i = 0; i < width * height * 2; i++)
-			{
-				colorData[i / 2] = (payload[i + 7] << 8) + payload[i + 1 + 7];
-				i++;
-			}
-
-			for (int16_t j = 0; j < height; j++, y_coordinate++)
-			{
-				for (int16_t i = 0; i < width; i++)
+				matrix->setCursor(x_coordinate + 1, y_coordinate + y_offset);
+				matrix->setTextColor(matrix->Color(payload[5], payload[6], payload[7]));
+				String myText = "";
+				for (int i = 8; i < length; i++)
 				{
-					matrix->drawPixel(x_coordinate + i, y_coordinate, (uint16_t)colorData[j * width + i]);
+					char c = payload[i];
+					myText += c;
 				}
-			}
-			break;
-		}
-
-		case 2:
-		{
-			//Command 2: DrawCircle
-
-			//Prepare the coordinates
-			uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
-			uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
-			uint16_t radius = payload[5];
-			matrix->drawCircle(x0_coordinate, y0_coordinate, radius, matrix->Color(payload[6], payload[7], payload[8]));
-			break;
-		}
-		case 3:
-		{
-			//Command 3: FillCircle
-
-			//Prepare the coordinates
-			uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
-			uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
-			uint16_t radius = payload[5];
-			matrix->fillCircle(x0_coordinate, y0_coordinate, radius, matrix->Color(payload[6], payload[7], payload[8]));
-			break;
-		}
-		case 4:
-		{
-			//Command 4: DrawPixel
-
-			//Prepare the coordinates
-			uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
-			uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
-			matrix->drawPixel(x0_coordinate, y0_coordinate, matrix->Color(payload[5], payload[6], payload[7]));
-			break;
-		}
-		case 5:
-		{
-			//Command 5: DrawRect
-
-			//Prepare the coordinates
-			uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
-			uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
-			int16_t width = payload[5];
-			int16_t height = payload[6];
-			matrix->drawRect(x0_coordinate, y0_coordinate, width, height, matrix->Color(payload[7], payload[8], payload[9]));
-			break;
-		}
-		case 6:
-		{
-			//Command 6: DrawLine
-
-			//Prepare the coordinates
-			uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
-			uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
-			uint16_t x1_coordinate = int(payload[5] << 8) + int(payload[6]);
-			uint16_t y1_coordinate = int(payload[7] << 8) + int(payload[8]);
-			matrix->drawLine(x0_coordinate, y0_coordinate, x1_coordinate, y1_coordinate, matrix->Color(payload[9], payload[10], payload[11]));
-			break;
-		}
-
-		case 7:
-		{
-			//Command 7: FillMatrix
-
-			matrix->fillScreen(matrix->Color(payload[1], payload[2], payload[3]));
-			break;
-		}
-
-		case 8:
-		{
-			//Command 8: Show
-			matrix->show();
-			break;
-		}
-		case 9:
-		{
-			//Command 9: Clear
-			matrix->clear();
-			break;
-		}
-		case 10:
-		{
-			//deprecated
-			//Command 10: Play
-			myMP3.volume(payload[2]);
-			delay(10);
-			myMP3.play(payload[1]);
-			break;
-		}
-		case 11:
-		{
-			//Command 11: reset
-			ESP.reset();
-			break;
-		}
-		case 12:
-		{
-			//Command 12: GetMatrixInfo
-			StaticJsonBuffer<400> jsonBuffer;
-			JsonObject &root = jsonBuffer.createObject();
-			root["type"] = "MatrixInfo";
-			root["version"] = version;
-			root["wifirssi"] = String(WiFi.RSSI());
-			root["wifiquality"] = GetRSSIasQuality(WiFi.RSSI());
-			root["wifissid"] = WiFi.SSID();
-			root["IP"] = WiFi.localIP().toString();
-			if (photocell.getCurrentLux()>1)
-			{
-				root["LUX"] = photocell.getCurrentLux();
-			}
-			else
-			{
-				root["LUX"] = NULL;
-			}
-
-			BMESensor.refresh();
-			if (tempState == 1)
-			{
-				root["Temp"] = BMESensor.temperature;
-				root["Hum"] = BMESensor.humidity;
-				root["hPa"] = BMESensor.pressure;
-			}
-			else if (tempState == 2)
-			{
-				root["Temp"] = htu.readTemperature();
-				root["Hum"] = htu.readHumidity();
-				root["hPa"] = 0;
-			}
-			else if (tempState == 3)
-			{
-				root["Temp"] = dht.readTemperature();
-				root["Hum"] = dht.readHumidity();
-				root["hPa"] = 0;
-			}
-			else
-			{
-				root["Temp"] = 0;
-				root["Hum"] = 0;
-				root["hPa"] = 0;
-			}
-
-			String JS;
-			root.printTo(JS);
-			sendToServer(JS);
-			break;
-		}
-		case 13:
-		{
-			matrix->setBrightness(payload[1]);
-			break;
-		}
-		case 14:
-		{
-			//tempState = (int)payload[1];
-			//audioState = (int)payload[2];
-			//gestureState = (int)payload[3];
-			ldrState = int(payload[1] << 8) + int(payload[2]);
-			matrixTempCorrection = (int)payload[3];
-			matrix->clear();
-			matrix->setCursor(6, 6);
-			matrix->setTextColor(matrix->Color(0, 255, 50));
-			matrix->print("SAVED!");
-			matrix->show();
-			delay(2000);
-			if (saveConfig())
-			{
-				ESP.reset();
-			}
-			break;
-		}
-		case 15:
-		{
-
-			matrix->clear();
-			matrix->setTextColor(matrix->Color(255, 0, 0));
-			matrix->setCursor(6, 6);
-			matrix->print("RESET!");
-			matrix->show();
-			delay(1000);
-			if (SPIFFS.begin())
-			{
-				delay(1000);
-				SPIFFS.remove("/awtrix.json");
-				SPIFFS.remove("/LiteConfig.json");
-				SPIFFS.end();
-				delay(1000);
-			}
-			wifiManager.resetSettings();
-			ESP.reset();
-			break;
-		}
-		case 16:
-		{
-			sendToServer("ping");
-			break;
-		}
-		case 17:
-		{
-			//Command 17: Volume
-			myMP3.volume(payload[1]);
-
-			break;
-		}
-		case 18:
-		{
-			//Command 18: Play
-			myMP3.playMp3Folder(payload[1]);
-			break;
-		}
-		case 19:
-		{
-			//Command 18: Stop
-			myMP3.stop();
-			break;
-		}
-		case 20:
-		{
-			//change the connection...
-			USBConnection = false;
-			WIFIConnection = false;
-			firstStart = true;
-			break;
-		}
-		case 21:
-		{
-			//multicolor...
-			uint16_t x_coordinate = int(payload[1] << 8) + int(payload[2]);
-			uint16_t y_coordinate = int(payload[3] << 8) + int(payload[4]);
-			matrix->setCursor(x_coordinate + 1, y_coordinate + y_offset);
-
-			String myJSON = "";
-			for (int i = 5; i < length; i++)
-			{
-				myJSON += (char)payload[i];
-			}
-			//Serial.println("myJSON: " + myJSON + " ENDE");
-			DynamicJsonBuffer jsonBuffer;
-			JsonArray &array = jsonBuffer.parseArray(myJSON);
-			if (array.success())
-			{
-				//Serial.println("Array erfolgreich geöffnet... =)");
-				for (int i = 0; i < (int)array.size(); i++)
-				{
-					String tempString = array[i]["t"];
-					String colorString = array[i]["c"];
-					JsonArray &color = jsonBuffer.parseArray(colorString);
-					if (color.success())
-					{
-						//Serial.println("Color erfolgreich geöffnet... =)");
-						String myText = "";
-						int r = color[0];
-						int g = color[1];
-						int b = color[2];
-						//Serial.println("Test: " + tempString + " / Color: " + r + "/" + g + "/" + b);
-						matrix->setTextColor(matrix->Color(r, g, b));
-						for (int y = 0; y < (int)tempString.length(); y++)
-						{
-							myText += (char)tempString[y];
-						}
-						matrix->print(utf8ascii(myText));
-					}
-				}
-			}
-			break;
-		}
-		case 22:
-		{
-			//Text
-			//scrollSpeed
-			//icon
-			//color
-			//multicolor (textData?)
-			//moveIcon
-			//repeatIcon
-			//duration
-			//repeat
-			//rainbow
-			//progress
-			//progresscolor
-			//progressBackgroundColor
-			//soundfile
-
-			String myJSON = "";
-			for (int i = 1; i < length; i++)
-			{
-				myJSON += (char)payload[i];
-			}
-			DynamicJsonBuffer jsonBuffer;
-			JsonObject &json = jsonBuffer.parseObject(myJSON);
-
-			String tempString = json["text"];
-			String colorString = json["color"];
-
-			JsonArray &color = jsonBuffer.parseArray(colorString);
-			int r = color[0];
-			int g = color[1];
-			int b = color[2];
-			int scrollSpeed = (int)json["scrollSpeed"];
-
-			Serial.println("Scrollspeed: " + (String)(scrollSpeed));
-
-			int textlaenge;
-			while (true)
-			{
-				matrix->setCursor(32, 6);
-				matrix->print(utf8ascii(tempString));
-				textlaenge = (int)matrix->getCursorX() - 32;
-				for (int i = 31; i > (-textlaenge); i--)
-				{
-					int starzeit = millis();
-					matrix->clear();
-					matrix->setCursor(i, 6);
-					matrix->setTextColor(matrix->Color(r, g, b));
-					matrix->print(utf8ascii(tempString));
-					matrix->show();
-					client.loop();
-					int endzeit = millis();
-					if ((scrollSpeed + starzeit - endzeit) > 0)
-					{
-						delay(scrollSpeed + starzeit - endzeit);
-					}
-				}
-				connectionTimout = millis();
+				// Serial.println(myText);
+				matrix->print(utf8ascii(myText));
 				break;
 			}
-			break;
-		}
-		case 23:
-		{
-			//Command 23: DrawFilledRect
+			case cmdTypeDrawBMP:
+			{
+				//Command 1: DrawBMP
 
-			//Prepare the coordinates
-			uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
-			uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
-			int16_t width = payload[5];
-			int16_t height = payload[6];
-			matrix->fillRect(x0_coordinate, y0_coordinate, width, height, matrix->Color(payload[7], payload[8], payload[9]));
-			break;
-		}
-		case 24:
-		{
-			myMP3.playFolder(payload[1], payload[2]);
-			myMP3.loopFolder(payload[1]);
-			break;
-		}
-		case 25:
-		{
-			myMP3.next();
-			break;
-		}
-		case 26:
-		{
-			myMP3.previous();
-			break;
-		}
-		case 27:
-		{
-			myMP3.stop();
-			break;
-		}
-		case 30:
-		{
-			saveLiteConfig();
-			break;
-		}
-		case 31:
-		{
-			apcConfigDef.liteMode = payload[1];
-			saveConfig();
-			ESP.reset();	
-			break;
-		}
+				//Prepare the coordinates
+				uint16_t x_coordinate = int(payload[1] << 8) + int(payload[2]);
+				uint16_t y_coordinate = int(payload[3] << 8) + int(payload[4]);
+
+				int16_t width = payload[5];
+				int16_t height = payload[6];
+
+				unsigned short colorData[width * height];
+
+				for (int i = 0; i < width * height * 2; i++)
+				{
+					colorData[i / 2] = (payload[i + 7] << 8) + payload[i + 1 + 7];
+					i++;
+				}
+
+				for (int16_t j = 0; j < height; j++, y_coordinate++)
+				{
+					for (int16_t i = 0; i < width; i++)
+					{
+						matrix->drawPixel(x_coordinate + i, y_coordinate, (uint16_t)colorData[j * width + i]);
+					}
+				}
+				break;
+			}
+			case cmdTypeDrawCircle:
+			{
+				//Command 2: DrawCircle
+
+				//Prepare the coordinates
+				uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
+				uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
+				uint16_t radius = payload[5];
+				matrix->drawCircle(x0_coordinate, y0_coordinate, radius, matrix->Color(payload[6], payload[7], payload[8]));
+				break;
+			}
+			case cmdTypeFillCircle:
+			{
+				//Command 3: FillCircle
+
+				//Prepare the coordinates
+				uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
+				uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
+				uint16_t radius = payload[5];
+				matrix->fillCircle(x0_coordinate, y0_coordinate, radius, matrix->Color(payload[6], payload[7], payload[8]));
+				break;
+			}
+			case cmdTypeDrawPixel:
+			{
+				//Command 4: DrawPixel
+
+				//Prepare the coordinates
+				uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
+				uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
+				matrix->drawPixel(x0_coordinate, y0_coordinate, matrix->Color(payload[5], payload[6], payload[7]));
+				break;
+			}
+			case cmdTypeDrawRect:
+			{
+				//Command 5: DrawRect
+
+				//Prepare the coordinates
+				uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
+				uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
+				int16_t width = payload[5];
+				int16_t height = payload[6];
+				matrix->drawRect(x0_coordinate, y0_coordinate, width, height, matrix->Color(payload[7], payload[8], payload[9]));
+				break;
+			}
+			case cmdTypeDrawLine:
+			{
+				//Command 6: DrawLine
+
+				//Prepare the coordinates
+				uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
+				uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
+				uint16_t x1_coordinate = int(payload[5] << 8) + int(payload[6]);
+				uint16_t y1_coordinate = int(payload[7] << 8) + int(payload[8]);
+				matrix->drawLine(x0_coordinate, y0_coordinate, x1_coordinate, y1_coordinate, matrix->Color(payload[9], payload[10], payload[11]));
+				break;
+			}
+			case cmdTypeFillMatrix:
+			{
+				//Command 7: FillMatrix
+
+				matrix->fillScreen(matrix->Color(payload[1], payload[2], payload[3]));
+				break;
+			}
+			case cmdTypeShow:
+			{
+				//Command 8: Show
+				matrix->show();
+				break;
+			}
+			case cmdTypeClear:
+			{
+				//Command 9: Clear
+				matrix->clear();
+				break;
+			}
+			case cmdTypePlay:
+			{
+				//deprecated
+				//Command 10: Play
+				myMP3.volume(payload[2]);
+				delay(10);
+				myMP3.play(payload[1]);
+				break;
+			}
+			case cmdTypeReset:
+			{
+				//Command 11: reset
+				ESP.reset();
+				break;
+			}
+			case cmdTypeGetMatrixInfo:
+			{
+				//Command 12: GetMatrixInfo
+				StaticJsonBuffer<400> jsonBuffer;
+				JsonObject &root = jsonBuffer.createObject();
+				root["type"] = "MatrixInfo";
+				root["version"] = version;
+				root["wifirssi"] = String(WiFi.RSSI());
+				root["wifiquality"] = GetRSSIasQuality(WiFi.RSSI());
+				root["wifissid"] = WiFi.SSID();
+				root["IP"] = WiFi.localIP().toString();
+				if (photocell.getCurrentLux()>1)
+				{
+					root["LUX"] = photocell.getCurrentLux();
+				}
+				else
+				{
+					root["LUX"] = NULL;
+				}
+
+				BMESensor.refresh();
+				if (tempState == 1)
+				{
+					root["Temp"] = BMESensor.temperature;
+					root["Hum"] = BMESensor.humidity;
+					root["hPa"] = BMESensor.pressure;
+				}
+				else if (tempState == 2)
+				{
+					root["Temp"] = htu.readTemperature();
+					root["Hum"] = htu.readHumidity();
+					root["hPa"] = 0;
+				}
+				else if (tempState == 3)
+				{
+					root["Temp"] = dht.readTemperature();
+					root["Hum"] = dht.readHumidity();
+					root["hPa"] = 0;
+				}
+				else
+				{
+					root["Temp"] = 0;
+					root["Hum"] = 0;
+					root["hPa"] = 0;
+				}
+
+				String JS;
+				root.printTo(JS);
+				sendToServer(JS);
+				break;
+			}
+			case cmdTypeSetBrightness:
+			{
+				matrix->setBrightness(payload[1]);
+				break;
+			}
+			case cmdTypeSaveConfig:
+			{
+				//tempState = (int)payload[1];
+				//audioState = (int)payload[2];
+				//gestureState = (int)payload[3];
+				ldrState = int(payload[1] << 8) + int(payload[2]);
+				matrixTempCorrection = (int)payload[3];
+				matrix->clear();
+				matrix->setCursor(6, 6);
+				matrix->setTextColor(matrix->Color(0, 255, 50));
+				matrix->print("SAVED!");
+				matrix->show();
+				delay(2000);
+				if (saveConfig())
+				{
+					ESP.reset();
+				}
+				break;
+			}
+			case cmdTypeConfigReset:
+			{
+
+				matrix->clear();
+				matrix->setTextColor(matrix->Color(255, 0, 0));
+				matrix->setCursor(6, 6);
+				matrix->print("RESET!");
+				matrix->show();
+				delay(1000);
+				if (SPIFFS.begin())
+				{
+					delay(1000);
+					SPIFFS.remove("/awtrix.json");
+					SPIFFS.remove("/LiteConfig.json");
+					SPIFFS.end();
+					delay(1000);
+				}
+				wifiManager.resetSettings();
+				ESP.reset();
+				break;
+			}
+			case cmdTypeSendHeartbeat:
+			{
+				sendToServer("ping");
+				break;
+			}
+			case cmdTypeVolume:
+			{
+				//Command 17: Volume
+				myMP3.volume(payload[1]);
+
+				break;
+			}
+			case cmdTypePlayMp3Folder:
+			{
+				//Command 18: Play
+				myMP3.playMp3Folder(payload[1]);
+				break;
+			}
+			case cmdTypePlayStop:
+			{
+				//Command 18: Stop
+				myMP3.stop();
+				break;
+			}
+			case cmdTypeChangeConnection:
+			{
+				//change the connection...
+				USBConnection = false;
+				WIFIConnection = false;
+				firstStart = true;
+				break;
+			}
+			case 21:
+			{
+				//multicolor...
+				uint16_t x_coordinate = int(payload[1] << 8) + int(payload[2]);
+				uint16_t y_coordinate = int(payload[3] << 8) + int(payload[4]);
+				matrix->setCursor(x_coordinate + 1, y_coordinate + y_offset);
+
+				String myJSON = "";
+				for (int i = 5; i < length; i++)
+				{
+					myJSON += (char)payload[i];
+				}
+				//Serial.println("myJSON: " + myJSON + " ENDE");
+				DynamicJsonBuffer jsonBuffer;
+				JsonArray &array = jsonBuffer.parseArray(myJSON);
+				if (array.success())
+				{
+					//Serial.println("Array erfolgreich geöffnet... =)");
+					for (int i = 0; i < (int)array.size(); i++)
+					{
+						String tempString = array[i]["t"];
+						String colorString = array[i]["c"];
+						JsonArray &color = jsonBuffer.parseArray(colorString);
+						if (color.success())
+						{
+							//Serial.println("Color erfolgreich geöffnet... =)");
+							String myText = "";
+							int r = color[0];
+							int g = color[1];
+							int b = color[2];
+							//Serial.println("Test: " + tempString + " / Color: " + r + "/" + g + "/" + b);
+							matrix->setTextColor(matrix->Color(r, g, b));
+							for (int y = 0; y < (int)tempString.length(); y++)
+							{
+								myText += (char)tempString[y];
+							}
+							matrix->print(utf8ascii(myText));
+						}
+					}
+				}
+				break;
+			}
+			case 22:
+			{
+				//Text
+				//scrollSpeed
+				//icon
+				//color
+				//multicolor (textData?)
+				//moveIcon
+				//repeatIcon
+				//duration
+				//repeat
+				//rainbow
+				//progress
+				//progresscolor
+				//progressBackgroundColor
+				//soundfile
+
+				String myJSON = "";
+				for (int i = 1; i < length; i++)
+				{
+					myJSON += (char)payload[i];
+				}
+				DynamicJsonBuffer jsonBuffer;
+				JsonObject &json = jsonBuffer.parseObject(myJSON);
+
+				String tempString = json["text"];
+				String colorString = json["color"];
+
+				JsonArray &color = jsonBuffer.parseArray(colorString);
+				int r = color[0];
+				int g = color[1];
+				int b = color[2];
+				int scrollSpeed = (int)json["scrollSpeed"];
+
+				Serial.println("Scrollspeed: " + (String)(scrollSpeed));
+
+				int textlaenge;
+				while (true)
+				{
+					matrix->setCursor(32, 6);
+					matrix->print(utf8ascii(tempString));
+					textlaenge = (int)matrix->getCursorX() - 32;
+					for (int i = 31; i > (-textlaenge); i--)
+					{
+						int starzeit = millis();
+						matrix->clear();
+						matrix->setCursor(i, 6);
+						matrix->setTextColor(matrix->Color(r, g, b));
+						matrix->print(utf8ascii(tempString));
+						matrix->show();
+						client.loop();
+						int endzeit = millis();
+						if ((scrollSpeed + starzeit - endzeit) > 0)
+						{
+							delay(scrollSpeed + starzeit - endzeit);
+						}
+					}
+					connectionTimout = millis();
+					break;
+				}
+				break;
+			}
+			case 23:
+			{
+				//Command 23: DrawFilledRect
+
+				//Prepare the coordinates
+				uint16_t x0_coordinate = int(payload[1] << 8) + int(payload[2]);
+				uint16_t y0_coordinate = int(payload[3] << 8) + int(payload[4]);
+				int16_t width = payload[5];
+				int16_t height = payload[6];
+				matrix->fillRect(x0_coordinate, y0_coordinate, width, height, matrix->Color(payload[7], payload[8], payload[9]));
+				break;
+			}
+			case 24:
+			{
+				myMP3.playFolder(payload[1], payload[2]);
+				myMP3.loopFolder(payload[1]);
+				break;
+			}
+			case 25:
+			{
+				myMP3.next();
+				break;
+			}
+			case 26:
+			{
+				myMP3.previous();
+				break;
+			}
+			case 27:
+			{
+				myMP3.stop();
+				break;
+			}
+			case 30:
+			{
+				saveLiteConfig();
+				break;
+			}
+			case 31:
+			{
+				apcConfigDef.liteMode = payload[1];
+				saveConfig();
+				ESP.reset();	
+				break;
+			}
 		}
 	}
 }
@@ -1212,7 +1231,7 @@ void callback(char *topic, byte *payload, unsigned int length)
 	updateMatrix(payload, length);
 }
 
-void reconnect()
+boolean reconnect()
 {
 	String clientId = "AWTRIXController-";
 	clientId += String(random(0xffff), HEX);
@@ -1221,7 +1240,9 @@ void reconnect()
 	{
 		client.subscribe("awtrixmatrix/#");
 		client.publish("matrixClient", "connected");
+		return true;
 	}
+	return false;
 }
 
 void ICACHE_RAM_ATTR interruptRoutine()
@@ -1659,7 +1680,7 @@ void hardwareInit()
 		hardwareAnimatedCheck(7, 29, 2);
 	}
 
-	if (myMP3.begin(mySoftwareSerial))
+	if (myMP3.begin(mySoftwareSerial, true, false))
 	{ //Use softwareSerial to communicate with mp3.
 		hardwareAnimatedCheck(3, 29, 2);
 	}
@@ -1751,6 +1772,7 @@ void onLineModeLoop()
 			if (myCounter == 4)
 			{
 				myCounter = 0;
+				ESP.reset();
 			}
 			myTime = millis();
 		}
@@ -1765,7 +1787,9 @@ void onLineModeLoop()
 			if (!client.connected())
 			{
 				//Serial.println("nicht verbunden...");
-				reconnect();
+				if (!reconnect()) {
+					Serial.println("reconnect failed.");
+				}
 				if (WIFIConnection)
 				{
 					USBConnection = false;
