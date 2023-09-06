@@ -1201,7 +1201,7 @@ void updateMatrix(byte payload[], int length)
 			}
 			case 26:
 			{
-				myMP3.previous();
+				// myMP3.previous();
 				break;
 			}
 			case 27:
