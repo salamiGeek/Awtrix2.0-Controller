@@ -1513,6 +1513,13 @@ void matrixInit()
 	matrix->setTextWrap(false);
 	matrix->setBrightness(80);
 	matrix->setFont(&TomThumb);
+	//Reset with Tasters...
+	matrix->clear();
+	matrix->setTextColor(matrix->Color(255, 0, 255));
+	matrix->setCursor(9, 6);
+	matrix->print("BOOT");
+	matrix->show();
+	delay(2000);
 }
 static const char *serverConfigHtmlBegin ICACHE_RODATA_ATTR =
 	"<html><head><title>AwtrixLite</title>																		\
